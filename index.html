@@ -2228,17 +2228,13 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 <!-- Account Name / Number Info -->
                 <div id="customerQrAccountBox" class="text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100/80 dark:bg-slate-800/80 py-2 px-3 rounded-xl"></div>
 
-                <!-- Quick Receipt Upload right inside the QR Modal -->
-                <div class="pt-1 text-left">
-                    <label class="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs cursor-pointer shadow-sm transition active:scale-95">
-                        <i class="ph-bold ph-upload-simple text-base"></i>
-                        <span id="qrModalUploadBtnText">ភ្ជាប់រូបភាពវិក្កយបត្របង់ប្រាក់ (Upload Receipt)</span>
-                        <input type="file" accept="image/*" onchange="handleCustomerReceiptSelect(event)" class="hidden">
-                    </label>
-                    <p id="qrModalReceiptStatus" class="hidden text-[11px] font-bold text-emerald-600 dark:text-emerald-400 text-center mt-1.5">
-                        ✓ បានភ្ជាប់រូបភាពវិក្កយបត្របង់ប្រាក់រួចរាល់!
-                    </p>
-                </div>
+                <!-- ប៊ូតុងទាញយករូបភាព KHQR (ABA & ACLEDA) -->
+             <div class="pt-1 text-left">
+                 <button type="button" onclick="downloadCurrentKhqrImage()" class="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs cursor-pointer shadow-sm transition active:scale-95">
+                     <i class="ph-bold ph-download-simple text-base"></i>
+                     <span id="qrModalDownloadBtnText">ទាញយករូបភាព ABA KHQR ដើម្បីស្កេនបង់ប្រាក់</span>
+                 </button>
+             </div>
 
                 <button type="button" onclick="closeCustomerQrPopup()" class="w-full py-2.5 rounded-xl bg-slate-900 dark:bg-slate-800 text-white text-xs font-extrabold transition">
                     រួចរាល់ (Done)
@@ -5279,6 +5275,143 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 window.closeCustomerQrPopup();
             }
         });
+    </script>
+	<!-- មុខងារទាញយករូបភាព KHQR (ABA & ACLEDA) ជាភាសាខ្មែរ -->
+    <script>
+        // ប្តូរអក្សរលើប៊ូតុងដោយស្វ័យប្រវត្តិទៅតាមធនាគារ ABA ឬ ACLEDA
+        document.addEventListener('click', function() {
+            setTimeout(() => {
+                const btnText = document.getElementById('qrModalDownloadBtnText');
+                const titleEl = document.getElementById('customerQrTitle');
+                if (btnText && titleEl) {
+                    const isAcleda = titleEl.textContent.includes('ACLEDA');
+                    btnText.textContent = isAcleda
+                        ? 'ទាញយករូបភាព ACLEDA KHQR ដើម្បីស្កេនបង់ប្រាក់'
+                        : 'ទាញយករូបភាព ABA KHQR ដើម្បីស្កេនបង់ប្រាក់';
+                }
+            }, 30);
+        });
+
+        // មុខងារគូររូបកាត KHQR (រួមមានឈ្មោះធនាគារ ឈ្មោះគណនី ទឹកប្រាក់ និង QR Code) រួចទាញយកជាឯកសារ PNG
+        window.downloadCurrentKhqrImage = function() {
+            const titleEl = document.getElementById('customerQrTitle');
+            const isAcleda = titleEl && titleEl.textContent.includes('ACLEDA');
+            const bankName = isAcleda ? 'ACLEDA' : 'ABA';
+            const bankColor = isAcleda ? '#1B365D' : '#005A8C';
+
+            const usdText = document.getElementById('qrPopupTotalUSD')?.textContent || '$0.00';
+            const khrText = document.getElementById('qrPopupTotalKHR')?.textContent || '0 ៛';
+            const accName = document.getElementById('customerQrAccountBox')?.textContent || `SHSHOP PRO (${bankName} KHQR)`;
+
+            // ស្វែងរករូប QR Code ដែលកំពុងបង្ហាញ (Dynamic Canvas ឬ Static Image)
+            const dynamicCanvasEl = document.querySelector('#dynamicKhqrCanvas canvas');
+            const dynamicImgEl = document.querySelector('#dynamicKhqrCanvas img');
+            const staticImgEl = document.getElementById('customerQrDisplayImg');
+
+            let qrSource = null;
+            const dynamicContainer = document.getElementById('dynamicKhqrCanvas');
+            if (dynamicContainer && !dynamicContainer.classList.contains('hidden')) {
+                if (dynamicCanvasEl) qrSource = dynamicCanvasEl;
+                else if (dynamicImgEl && dynamicImgEl.src) qrSource = dynamicImgEl;
+            }
+            if (!qrSource && staticImgEl && !staticImgEl.classList.contains('hidden')) {
+                qrSource = staticImgEl;
+            }
+
+            if (!qrSource) {
+                alert('មិនអាចទាញយករូបភាព QR បានទេ សូមព្យាយាមម្តងទៀត!');
+                return;
+            }
+
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = 600;
+            exportCanvas.height = 780;
+            const ctx = exportCanvas.getContext('2d');
+
+            // 1. ផ្ទៃខាងក្រោយពណ៌ស
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+
+            // 2. ក្បាលខាងលើពណ៌ធនាគារ (ABA ឬ ACLEDA)
+            ctx.fillStyle = bankColor;
+            ctx.fillRect(0, 0, exportCanvas.width, 115);
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 30px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(`${bankName} KHQR PAYMENT`, exportCanvas.width / 2, 55);
+
+            ctx.font = '500 18px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText('ស្កេនដើម្បីទូទាត់ប្រាក់ • SHShop Pro', exportCanvas.width / 2, 90);
+
+            // 3. ប្រអប់បង្ហាញទឹកប្រាក់ត្រូវទូទាត់
+            ctx.fillStyle = '#F8FAFC';
+            ctx.fillRect(50, 140, 500, 95);
+            ctx.strokeStyle = '#E2E8F0';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(50, 140, 500, 95);
+
+            ctx.fillStyle = '#64748B';
+            ctx.font = 'bold 17px "Kantumruy Pro", sans-serif';
+            ctx.fillText('ទឹកប្រាក់ត្រូវទូទាត់សរុប (Total Amount)', exportCanvas.width / 2, 172);
+
+            ctx.fillStyle = '#0F172A';
+            ctx.font = '900 28px "JetBrains Mono", monospace';
+            ctx.fillText(`${usdText} (${khrText})`, exportCanvas.width / 2, 215);
+
+            // 4. គូររូប QR Code ចំកណ្តាល
+            const drawAndSave = (imgOrCanvas) => {
+                try {
+                    ctx.strokeStyle = '#E2E8F0';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(110, 260, 380, 380);
+                    ctx.drawImage(imgOrCanvas, 130, 280, 340, 340);
+
+                    // 5. ឈ្មោះគណនីនៅខាងក្រោម QR
+                    ctx.fillStyle = '#1E293B';
+                    ctx.font = 'bold 20px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+                    ctx.fillText(accName.trim(), exportCanvas.width / 2, 685);
+
+                    ctx.fillStyle = '#64748B';
+                    ctx.font = '500 15px "Kantumruy Pro", sans-serif';
+                    ctx.fillText('សូមបើកកម្មវិធី ABA ឬ ACLEDA រួចជ្រើសរើសយករូបភាពនេះដើម្បីស្កេនបង់ប្រាក់', exportCanvas.width / 2, 725);
+
+                    // 6. ទាញយកជារូបភាព PNG
+                    const dataUrl = exportCanvas.toDataURL('image/png');
+                    const link = document.createElement('a');
+                    link.download = `SHShop_${bankName}_KHQR_${usdText.replace(/[^0-9.]/g, '') || '0'}.png`;
+                    link.href = dataUrl;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    if (typeof showToast === 'function') {
+                        showToast(`បានទាញយករូបភាព ${bankName} KHQR រួចរាល់!`);
+                    }
+                } catch (err) {
+                    // ករណីរូបភាពមានជាប់ Cross-Origin ទាញយករូបផ្ទាល់តែម្តង
+                    if (qrSource.src) {
+                        const fallbackLink = document.createElement('a');
+                        fallbackLink.download = `SHShop_${bankName}_KHQR.png`;
+                        fallbackLink.href = qrSource.src;
+                        fallbackLink.target = '_blank';
+                        document.body.appendChild(fallbackLink);
+                        fallbackLink.click();
+                        document.body.removeChild(fallbackLink);
+                    }
+                }
+            };
+
+            if (qrSource instanceof HTMLCanvasElement) {
+                drawAndSave(qrSource);
+            } else if (qrSource instanceof HTMLImageElement) {
+                if (qrSource.complete) {
+                    drawAndSave(qrSource);
+                } else {
+                    qrSource.onload = () => drawAndSave(qrSource);
+                }
+            }
+        };
     </script>
 </body>
 </body></html>
