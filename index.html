@@ -5141,7 +5141,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
           // === NEW: Direct Bank App Links (ABA & ACLEDA) ===
         const BANK_APP_LINKS = {
             // Paste your ABA Share Link inside the quotes below:
-            abaPayLink: "https://link.payway.com.kh/ABAPAYYl5532266", 
+            abaPayLink: "https://pay.ababank.com/oRF8/1yv4aqhp", 
             // Paste your ACLEDA Link inside the quotes below (or leave as default to open QR popup):
             acledaPayLink: "" 
         };
@@ -5150,21 +5150,24 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             const totalUSD = cart.reduce((sum, item) => sum + (item.unitPrice * item.qty), 0);
             const amountStr = totalUSD.toFixed(2);
 
-            // Automatically copy the exact dollar amount so customer can paste it in 1 tap
+            // Automatically copy the price to clipboard as backup
             copyTextToClipboardSilent(amountStr);
 
             if (bank === 'ABA') {
-                if (BANK_APP_LINKS.abaPayLink && !BANK_APP_LINKS.abaPayLink.includes("YOUR_ABA_ID")) {
-                    showToast(`កំពុងបើក ABA App... បានចម្លងតម្លៃ $${amountStr}!`);
-                    window.location.href = `${BANK_APP_LINKS.abaPayLink}&amount=${encodeURIComponent(amountStr)}`;
+                if (BANK_APP_LINKS.abaPayLink) {
+                    showToast(`កំពុងបើក ABA App... (ទឹកប្រាក់ $${amountStr})`);
+                    
+                    // Appends the exact cart total amount to your new ABA pay link
+                    const finalUrl = `${BANK_APP_LINKS.abaPayLink}&amount=${encodeURIComponent(amountStr)}`;
+                    window.location.href = finalUrl;
                 } else {
                     openCustomerQrPopup('ABA');
                     showToast(`បានចម្លងតម្លៃ $${amountStr}! សូមស្កេន ABA QR`);
                 }
             } else if (bank === 'ACLEDA') {
                 if (BANK_APP_LINKS.acledaPayLink) {
-                    showToast(`កំពុងបើក ACLEDA App... បានចម្លងតម្លៃ $${amountStr}!`);
-                    window.location.href = BANK_APP_LINKS.acledaPayLink;
+                    showToast(`កំពុងបើក ACLEDA App... (ទឹកប្រាក់ $${amountStr})`);
+                    window.location.href = `${BANK_APP_LINKS.acledaPayLink}&amount=${encodeURIComponent(amountStr)}`;
                 } else {
                     openCustomerQrPopup('ACLEDA');
                     showToast(`បានចម្លងតម្លៃ $${amountStr}! សូមស្កេន ACLEDA QR`);
