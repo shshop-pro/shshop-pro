@@ -2171,6 +2171,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
     </div>
 
     <!-- Customer QR Code Scan & Receipt Upload Popup Modal -->
+    <!-- Customer QR Code Scan & Receipt Upload Popup Modal -->
     <div id="customerQrModal" onclick="closeCustomerQrPopup()" class="fixed inset-0 z-[60] hidden items-center justify-center p-3 sm:p-4 bg-slate-950/75 dark:bg-black/85 backdrop-blur-md overflow-y-auto">
         <div class="modal-animate bg-white dark:bg-[#111522] border border-slate-200 dark:border-slate-800 rounded-3xl max-w-sm w-full overflow-hidden shadow-floating my-auto" onclick="event.stopPropagation()">
             <!-- Top Bank Header Banner -->
@@ -2209,12 +2210,9 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                     </div>
                 </div>
 
-                <!-- QR Image Frame -->
-               <!-- QR Image Frame (Supports Live Dynamic KHQR Canvas + Static Fallback) -->
+                <!-- QR Image Frame (Supports Live Dynamic KHQR Canvas + Static Fallback) -->
                 <div class="relative mx-auto w-60 h-60 sm:w-64 sm:h-64 rounded-2xl bg-white p-3 border-2 border-slate-200 dark:border-slate-700 shadow-inner flex flex-col items-center justify-center overflow-hidden">
-                    <!-- Dynamic KHQR Canvas (Auto-generated with exact USD price) -->
                     <div id="dynamicKhqrCanvas" class="hidden items-center justify-center w-full h-full"></div>
-                    <!-- Static Fallback Image -->
                     <img id="customerQrDisplayImg" src="" alt="Bank QR Code" class="w-full h-full object-contain">
                     <div id="customerQrEmptyNotice" class="hidden p-4 text-center space-y-2">
                         <i class="ph-duotone ph-qr-code text-4xl text-slate-400 mx-auto block"></i>
@@ -2222,6 +2220,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                         <p class="text-[10px] text-slate-400">Owner can upload ABA &amp; ACLEDA QR in Owner Mode → ABA / ACLEDA QR</p>
                     </div>
                 </div>
+
                 <div id="dynamicKhqrBadge" class="hidden text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 py-1 px-3 rounded-full mx-auto w-fit">
                     ✓ Dynamic KHQR (បញ្ចូលទឹកប្រាក់ស្វ័យប្រវត្តិ)
                 </div>
@@ -5263,5 +5262,23 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         document.getElementById('searchInput').addEventListener('input', renderProducts);
         initPersistence();
     </script>
+<!-- Failsafe KHQR Popup Close Handler -->
+    <script>
+        window.closeCustomerQrPopup = function() {
+            const modal = document.getElementById('customerQrModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                modal.style.display = '';
+            }
+        };
 
+        // Also allow pressing Escape key to close it
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                window.closeCustomerQrPopup();
+            }
+        });
+    </script>
+</body>
 </body></html>
