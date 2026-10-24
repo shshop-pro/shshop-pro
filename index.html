@@ -5425,52 +5425,48 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             });
         };
 
-        // 2. មុខងារបញ្ជូនរូប KHQR ចូលទៅកាន់កម្មវិធី ABA Mobile ឬ ACLEDA Mobile Scan ដោយផ្ទាល់
+        // 2. មុខងារទាញយករូប KHQR ទុកក្នុងទូរស័ព្ទ រួចលោតបើកកម្មវិធី ABA Mobile ឬ ACLEDA Mobile ដោយផ្ទាល់ភ្លាមៗ (គ្មានផ្ទាំង Share Sheet)
         window.openBankAppAndScanKhqr = function() {
             generateKhqrCardCanvas((canvas, bankName, usdText) => {
                 const fileName = `SHShop_${bankName}_KHQR_${usdText.replace(/[^0-9.]/g, '') || '0'}.png`;
 
-                canvas.toBlob(async (blob) => {
-                    if (!blob) return;
-                    const file = new File([blob], fileName, { type: 'image/png' });
+                // 1. រក្សាទុករូបភាព Dynamic KHQR (ដែលមានទឹកប្រាក់ស្រាប់) ចូលក្នុងទូរស័ព្ទភ្ញៀវដោយស្វ័យប្រវត្តិសិន
+                const dataUrl = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.download = fileName;
+                link.href = dataUrl;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
 
-                    // ប្រសិនបើបើកលើទូរស័ព្ទ (iOS / Android) ដែលគាំទ្រការបញ្ជូនរូបភាពចូល App ធនាគារផ្ទាល់ (Share Sheet to ABA / ACLEDA Scan)
-                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                        try {
-                            await navigator.share({
-                                files: [file],
-                                title: `${bankName} KHQR Payment`,
-                                text: `សូមជ្រើសរើសកម្មវិធី ${bankName} Mobile ដើម្បីស្កេនបង់ប្រាក់ចំនួន ${usdText}`
-                            });
-                            return;
-                        } catch (err) {
-                            // ប្រសិនបើភ្ញៀវចុចបិទផ្ទាំង Share មិនបាច់ធ្វើអ្វីបន្តទេ
-                            if (err.name === 'AbortError') return;
-                        }
-                    }
+                if (typeof showToast === 'function') {
+                    showToast(`កំពុងបើកកម្មវិធី ${bankName} Mobile ដោយផ្ទាល់...`);
+                }
 
-                    // Fallback៖ ទាញយករូបភាព KHQR ដោយស្វ័យប្រវត្តិ រួចលោតបើកកម្មវិធី ABA Mobile ឬ ACLEDA Mobile
-                    const dataUrl = canvas.toDataURL('image/png');
-                    const link = document.createElement('a');
-                    link.download = fileName;
-                    link.href = dataUrl;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
+                // 2. លោតចូលកម្មវិធី ABA Mobile ឬ ACLEDA Mobile ដោយផ្ទាល់ភ្លាមៗតាមរយៈ Deep Link / Android Intent
+                const ua = navigator.userAgent || '';
+                const isAndroid = /Android/i.test(ua);
+                const isIOS = /iPhone|iPad|iPod/i.test(ua);
 
-                    if (typeof showToast === 'function') {
-                        showToast(`បានរក្សាទុករូប QR រួចកំពុងបើកកម្មវិធី ${bankName} Mobile...`);
-                    }
-
-                    // Deep Link ទៅកាន់កម្មវិធី ABA Mobile ឬ ACLEDA Mobile នៅលើទូរស័ព្ទ
-                    setTimeout(() => {
-                        if (bankName === 'ABA') {
-                            window.location.href = 'abamobilebank://';
+                setTimeout(() => {
+                    if (bankName === 'ABA') {
+                        if (isAndroid) {
+                            // បើកកម្មវិធី ABA Mobile ផ្ទាល់លើ Android
+                            window.location.href = 'intent://#Intent;scheme=abamobilebank;package=com.paygo24.ibank;end';
                         } else {
+                            // បើកកម្មវិធី ABA Mobile ផ្ទាល់លើ iPhone (iOS)
+                            window.location.href = 'abamobilebank://';
+                        }
+                    } else {
+                        if (isAndroid) {
+                            // បើកកម្មវិធី ACLEDA Mobile ផ្ទាល់លើ Android
+                            window.location.href = 'intent://#Intent;scheme=acledamobile;package=com.domain.acledabankqr;end';
+                        } else {
+                            // បើកកម្មវិធី ACLEDA Mobile ផ្ទាល់លើ iPhone (iOS)
                             window.location.href = 'acledamobile://';
                         }
-                    }, 450);
-                }, 'image/png');
+                    }
+                }, 300);
             });
         };
     </script>
