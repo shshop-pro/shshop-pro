@@ -1672,26 +1672,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                     </div>
 
                     <!-- Inline QR Preview Banner & Receipt Upload Box (Shown when ABA or ACLEDA is selected) -->
-					<!-- Direct App Payment Buttons (ABA Mobile & ACLEDA Mobile) -->
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-    <!-- Direct ABA App Button -->
-    <button type="button" onclick="openDirectBankApp('ABA')" class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#005A8C] to-[#0077B6] hover:opacity-95 text-white font-extrabold text-xs flex items-center justify-between shadow-md transition active:scale-95 cursor-pointer">
-        <span class="flex items-center gap-2">
-            <i class="ph-fill ph-device-mobile-speaker text-base text-[#D4FF33]"></i>
-            <span>Pay in ABA App</span>
-        </span>
-        <span id="directAbaAmountBadge" class="px-2 py-0.5 rounded-lg bg-black/25 font-mono text-[11px]">$0.00 →</span>
-    </button>
-
-    <!-- Direct ACLEDA App Button -->
-    <button type="button" onclick="openDirectBankApp('ACLEDA')" class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#1B365D] to-[#2a4d80] hover:opacity-95 text-white font-extrabold text-xs flex items-center justify-between shadow-md transition active:scale-95 cursor-pointer">
-        <span class="flex items-center gap-2">
-            <i class="ph-fill ph-device-mobile-speaker text-base text-amber-300"></i>
-            <span>Pay in ACLEDA App</span>
-        </span>
-        <span id="directAcledaAmountBadge" class="px-2 py-0.5 rounded-lg bg-black/25 font-mono text-[11px] text-amber-300">$0.00 →</span>
-    </button>
-</div>
                     <div id="qrAndReceiptSection" class="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-3">
                         <div class="p-3 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/70 flex items-center justify-between gap-2.5">
                             <div class="flex items-center gap-2.5 min-w-0">                          
@@ -3773,11 +3753,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             document.getElementById('invoiceIdBadge').textContent = `#${currentOrderCode}`;
             document.getElementById('drawerTotalUSD').textContent = totals.usd;
             document.getElementById('drawerTotalKHR').textContent = totals.khr;
-            const abaBadge = document.getElementById('directAbaAmountBadge');
-            const aclBadge = document.getElementById('directAcledaAmountBadge');
-            if (abaBadge) abaBadge.textContent = `${totals.usd} →`;
-            if (aclBadge) aclBadge.textContent = `${totals.usd} →`;
-			
 
             itemsContainer.innerHTML = cart.map(item => {
                 const lineTotal = formatPriceDisplay(item.unitPrice * item.qty);
@@ -5138,42 +5113,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 if (activeQuickEditId) cancelInlinePrice();
             }
         });
-          // === NEW: Direct Bank App Links (ABA & ACLEDA) ===
-        const BANK_APP_LINKS = {
-            // Paste your ABA Share Link inside the quotes below:
-            abaPayLink: "https://pay.ababank.com/oRF8/1yv4aqhp", 
-            // Paste your ACLEDA Link inside the quotes below (or leave as default to open QR popup):
-            acledaPayLink: "" 
-        };
-
-        window.openDirectBankApp = function(bank) {
-            const totalUSD = cart.reduce((sum, item) => sum + (item.unitPrice * item.qty), 0);
-            const amountStr = totalUSD.toFixed(2);
-
-            // Automatically copy the price to clipboard as backup
-            copyTextToClipboardSilent(amountStr);
-
-            if (bank === 'ABA') {
-                if (BANK_APP_LINKS.abaPayLink) {
-                    showToast(`កំពុងបើក ABA App... (ទឹកប្រាក់ $${amountStr})`);
-                    
-                    // Appends the exact cart total amount to your new ABA pay link
-                    const finalUrl = `${BANK_APP_LINKS.abaPayLink}&amount=${encodeURIComponent(amountStr)}`;
-                    window.location.href = finalUrl;
-                } else {
-                    openCustomerQrPopup('ABA');
-                    showToast(`បានចម្លងតម្លៃ $${amountStr}! សូមស្កេន ABA QR`);
-                }
-            } else if (bank === 'ACLEDA') {
-                if (BANK_APP_LINKS.acledaPayLink) {
-                    showToast(`កំពុងបើក ACLEDA App... (ទឹកប្រាក់ $${amountStr})`);
-                    window.location.href = `${BANK_APP_LINKS.acledaPayLink}&amount=${encodeURIComponent(amountStr)}`;
-                } else {
-                    openCustomerQrPopup('ACLEDA');
-                    showToast(`បានចម្លងតម្លៃ $${amountStr}! សូមស្កេន ACLEDA QR`);
-                }
-            }
-        };
 
         document.getElementById('searchInput').addEventListener('input', renderProducts);
         initPersistence();
