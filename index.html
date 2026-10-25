@@ -5915,31 +5915,14 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
     </style>
 
     <!-- ប៊ូតុងអណ្តែតតូចស្អាតនៅជ្រុងស្តាំ (Telegram, Messenger, Facebook Page) មិនបាំងទំនិញលើទូរស័ព្ទ -->
-    <div id="compactSocialDock" class="fixed bottom-20 sm:bottom-6 right-2.5 sm:right-5 z-40 flex flex-col items-end gap-2 pointer-events-none">
-        <!-- បញ្ជីប៊ូតុងទំនាក់ទំនងទាំង ៣ (អាចចុចបង្រួម ឬពង្រីកបាន) -->
-        <div id="socialDockButtons" class="flex flex-col items-end gap-2 transition-all duration-200 pointer-events-auto">
-            <!-- 1. ប៊ូតុង Facebook Page -->
-            <button type="button" onclick="openDirectFacebookPage()" title="Facebook Page" class="flex items-center gap-2 pl-2.5 pr-3 py-1.5 sm:py-2 rounded-full bg-[#1877F2]/95 hover:bg-[#1877F2] text-white shadow-md backdrop-blur-md border border-white/80 dark:border-slate-700 transition active:scale-95 cursor-pointer">
-                <i class="ph-fill ph-facebook-logo text-base sm:text-lg"></i>
-                <span id="dockFbText" class="text-[10px] sm:text-xs font-extrabold">ផេកហ្វេសប៊ុក</span>
-            </button>
-
-            <!-- 2. ប៊ូតុងឆាត Messenger -->
-            <button type="button" onclick="openDirectMessengerChat()" title="Messenger Chat" class="flex items-center gap-2 pl-2.5 pr-3 py-1.5 sm:py-2 rounded-full bg-gradient-to-r from-[#00B2FF] to-[#006AFF] text-white shadow-md backdrop-blur-md border border-white/80 dark:border-slate-700 transition active:scale-95 cursor-pointer">
-                <i class="ph-fill ph-messenger-logo text-base sm:text-lg"></i>
-                <span id="dockMsgText" class="text-[10px] sm:text-xs font-extrabold">ឆាត Messenger</span>
-            </button>
-
-            <!-- 3. ប៊ូតុងឆាត Telegram -->
-            <button type="button" onclick="openDirectTelegramChat()" title="Telegram Chat" class="flex items-center gap-2 pl-2.5 pr-3 py-1.5 sm:py-2 rounded-full bg-[#229ED9]/95 hover:bg-[#229ED9] text-white shadow-md backdrop-blur-md border border-white/80 dark:border-slate-700 transition active:scale-95 cursor-pointer">
-                <i class="ph-fill ph-telegram-logo text-base sm:text-lg"></i>
-                <span id="dockTgText" class="text-[10px] sm:text-xs font-extrabold">ឆាត Telegram</span>
-            </button>
-        </div>
-
-        <!-- ប៊ូតុងមូលតូចសម្រាប់បិទ/បើកប៊ូតុងឆាត (កុំឱ្យបាំងទំនិញលើទូរស័ព្ទ) -->
-        <button type="button" onclick="toggleSocialDock()" id="socialDockToggleBtn" title="បិទ/បើកប៊ូតុងទំនាក់ទំនង" class="pointer-events-auto w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#12101B]/90 dark:bg-[#D4FF33] text-white dark:text-[#12101B] shadow-floating border border-white/60 dark:border-slate-800 flex items-center justify-center transition active:scale-90 cursor-pointer">
-            <i id="socialDockToggleIcon" class="ph-bold ph-caret-down text-sm sm:text-base"></i>
+    <!-- ប៊ូតុងអណ្តែត Telegram តែមួយគត់នៅជ្រុងខាងក្រោមស្តាំ (តូចស្អាត មិនបាំងទំនិញលើទូរស័ព្ទ) -->
+    <div id="compactSocialDock" class="fixed bottom-20 sm:bottom-6 right-3 sm:right-5 z-40">
+        <button type="button" onclick="openDirectTelegramChat()" title="ឆាតសួរព័ត៌មានតាម Telegram" class="flex items-center gap-1.5 pl-2.5 pr-3 py-2 rounded-full bg-[#229ED9]/95 hover:bg-[#1b8bc0] text-white shadow-floating backdrop-blur-md border border-white/80 dark:border-slate-700 transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer group">
+            <span class="relative flex h-6 w-6 items-center justify-center rounded-full bg-white text-[#229ED9]">
+                <i class="ph-fill ph-telegram-logo text-sm group-hover:rotate-12 transition"></i>
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-35"></span>
+            </span>
+            <span id="dockTgText" class="text-[11px] sm:text-xs font-extrabold tracking-wide">ឆាត Telegram</span>
         </button>
     </div>
 
