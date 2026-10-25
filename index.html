@@ -5490,5 +5490,362 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             });
         };
     </script>
-</body>
+<!-- ប្រព័ន្ធបកប្រែពេញលេញ 100% (ភាសាខ្មែរ សុទ្ធ ⇄ ភាសាអង់គ្លេស សុទ្ធ) -->
+    <script>
+        (function() {
+            const FULL_TRANSLATIONS = {
+                km: {
+                    // 1. Top Header & Admin Bar
+                    currencyBoth: "$ ដុល្លារ + ៛ រៀល",
+                    currencyUsd: "$ ដុល្លារប៉ុណ្ណោះ",
+                    currencyKhr: "៛ រៀល + $ ដុល្លារ",
+                    currencyEur: "€ អឺរ៉ូ",
+                    btnTelegramAdmin: "តេឡេក្រាម",
+                    btnQrSetupLabel: "កំណត់ QR ធនាគារ",
+                    btnHeroSetupLabel: "កែស្លាយ Hero (៣ កាត)",
+                    btnSaveHtmlAdmin: "រក្សាទុកកូដ HTML",
+
+                    // 2. Hero Section
+                    heroMainTitle: "សីហា ហាងលក់ទូរស័ព្ទដៃទំនើប និងគ្រឿងបន្លាស់គ្រប់ប្រភេទ",
+                    heroShopNowBtn: "មើលទំនិញទាំងអស់",
+                    heroQuickEditSpan: "កែរូបភាពស្លាយទាំង ៣",
+
+                    // 3. Dark Feature Box (Built for the Future)
+                    featureHeaderTag: "បង្កើតឡើងសម្រាប់អនាគត • ការធានាពី SHSHOP PRO",
+                    feat1Title: "ការរចនាទំនើបទាន់សម័យ",
+                    feat1Desc: "ទូរស័ព្ទ និងគ្រឿងបន្លាស់ស៊េរីថ្មីៗ រចនាឡើងដោយភាពទំនើប និងគុណភាពខ្ពស់បំផុត។",
+                    feat2Title: "ថាមពល និងល្បឿនខ្លាំង",
+                    feat2Desc: "ឆ្នាំងសាកលឿន ថ្មជំនួយ និងឧបករណ៍ហ្ស៊ីនដែលផ្តល់ថាមពលខ្លាំង និងសុវត្ថិភាព។",
+                    feat3Title: "កម្មង់រហ័សតាមតេឡេក្រាម",
+                    feat3Desc: "ជ្រើសរើសទំនិញ និងផ្ញើវិក្កយបត្រកម្មង់ផ្ទាល់ចូលតេឡេក្រាមហាងក្នុងរយៈពេលប៉ុន្មានវិនាទី។",
+                    feat4Title: "សុវត្ថិភាព និងការធានាត្រឹមត្រូវ",
+                    feat4Desc: "ធានាគុណភាពត្រឹមត្រូវ តម្លៃច្បាស់លាស់ និងមានទំនុកចិត្តខ្ពស់។",
+
+                    // 4. Catalog Section Header
+                    topPicksTag: "ស្វែងរកទំនិញពេញនិយមរបស់យើង",
+                    itemsSuffix: " មុខទំនិញ",
+
+                    // 5. Footer Metrics & Experience Banner
+                    metric1Label: "ទំនិញហ្ស៊ីនសុទ្ធ ១០០%",
+                    metric2Label: "អតិថិជនពេញចិត្ត",
+                    metric3Label: "អត្រាពេញចិត្តខ្ពស់",
+                    metric4Label: "ជំនួយតាមតេឡេក្រាម",
+                    footerQuoteText: "SHShop Pro ផ្តល់ជូនលើសពីឧបករណ៍អេឡិចត្រូនិច — យើងផ្តល់ជូននូវគុណភាពហ្ស៊ីនពិតប្រាកដ និងការកម្មង់ភ្លាមៗតាមរយៈតេឡេក្រាម។",
+                    footerQuoteAuthor: "— បន្ទប់តាំងបង្ហាញផ្លូវការ SHShop Pro",
+                    footerCtaTitle: "ត្រៀមខ្លួនផ្លាស់ប្តូរឧបករណ៍ទំនើបថ្មីហើយឬនៅ?",
+                    footerCtaDesc: "ជ្រើសរើសទូរស័ព្ទ និងគ្រឿងបន្លាស់ក្នុងកន្ត្រក រួចផ្ញើវិក្កយបត្រចូលតេឡេក្រាមហាងដោយផ្ទាល់។",
+                    footerCtaBtn: "បើកកន្ត្រកទំនិញ និងកម្មង់តាមតេឡេក្រាម",
+
+                    // 6. Cart Drawer & Checkout
+                    btnClearCart: "លុបទាំងអស់",
+                    custDetailsHeader: "ព័ត៌មានអតិថិជន និងការដឹកជញ្ជូន",
+                    custNamePh: "ឧ. សុខា",
+                    custPhonePh: "ឧ. 012 345 678",
+                    custAddressPh: "ឧ. ភ្នំពេញ (ទួលគោក) ឬ ផ្ញើតាម J&T / វីរៈប៊ុនថាំ...",
+                    paymentMethodHeader: "វិធីទូទាត់ប្រាក់ (ចុចជ្រើសរើសខាងក្រោម) *",
+                    payBtnABAText: "ABA KHQR",
+                    payBtnACLEDAText: "ACLEDA QR",
+                    labelCashPay: "សាច់ប្រាក់",
+                    subBadgeQR: "ចុចបង្ហាញ QR",
+                    subBadgeCASH: "ពេលទទួលទំនិញ",
+                    activeBankAccountDefault: "ជ្រើសរើសចុចប៊ូតុងខាងលើដើម្បីបើកមើលកូដ QR ស្កេនបង់ប្រាក់",
+                    labelUploadReceiptTitle: "ភ្ជាប់រូបភាពវិក្កយបត្របង់ប្រាក់",
+                    receiptUploadedBadge: "✓ បានភ្ជាប់រួចរាល់",
+                    labelClickToUploadReceipt: "ចុចទីនេះដើម្បីជ្រើសរើសរូបភាពបង់ប្រាក់",
+                    receiptAttachedTitle: "រូបភាពបង់ប្រាក់ត្រូវបានភ្ជាប់",
+                    receiptAttachedSub: "នឹងត្រូវផ្ញើទៅតេឡេក្រាមជាមួយវិក្កយបត្រ",
+                    invoiceBoxHeader: "🧾 វិក្កយបត្រ SHSHOP PRO",
+                    labelTotalUSD: "សរុប (ដុល្លារ):",
+                    labelTotalKHR: "សរុប (រៀល):",
+
+                    // 7. Customer KHQR Popup Modal
+                    customerQrTitleABA: "ការទូទាត់ប្រាក់តាម ABA KHQR",
+                    customerQrTitleACLEDA: "ការទូទាត់ប្រាក់តាម ACLEDA KHQR",
+                    customerQrSubtitle: "ស្កេនដើម្បីទូទាត់ប្រាក់តាមកម្មវិធីធនាគារ",
+                    qrTotalLabel: "ទឹកប្រាក់ត្រូវទូទាត់សរុប:",
+                    dynamicKhqrBadge: "✓ កូដ Dynamic KHQR (បញ្ចូលទឹកប្រាក់ស្វ័យប្រវត្តិ)",
+                    qrOpenAppABA: "បើកកម្មវិធី ABA Mobile ស្កេនបង់ប្រាក់ភ្លាមៗ",
+                    qrOpenAppACLEDA: "បើកកម្មវិធី ACLEDA Mobile ស្កេនបង់ប្រាក់ភ្លាមៗ",
+                    qrDownloadABA: "ទាញយករូបភាព ABA KHQR ទុកក្នុងទូរស័ព្ទ",
+                    qrDownloadACLEDA: "ទាញយករូបភាព ACLEDA KHQR ទុកក្នុងទូរស័ព្ទ",
+                    qrDoneBtn: "រួចរាល់",
+
+                    // 8. Modals (Login, Password, Product, Category, Exchange Rate)
+                    ownerSecuritySub: "ប្រព័ន្ធសុវត្ថិភាពម្ចាស់ហាង SHShop Pro",
+                    adminPassPh: "បញ្ចូលពាក្យសម្ងាត់...",
+                    btnCancelPinLogin: "បោះបង់",
+                    btnUnlockOwnerSubmit: "បើកសិទ្ធិម្ចាស់ហាង",
+                    newPassPh: "ពាក្យសម្ងាត់ថ្មី...",
+                    confirmPassPh: "បញ្ជាក់ពាក្យសម្ងាត់...",
+                    btnCancelChangePass: "បោះបង់",
+                    btnSaveChangePass: "រក្សាទុកពាក្យសម្ងាត់",
+                    btnCancelProduct: "បោះបង់",
+                    newCategoryPh: "ឈ្មោះប្រភេទទំនិញថ្មី...",
+                    btnAddCategorySubmit: "បន្ថែម"
+                },
+                en: {
+                    // 1. Top Header & Admin Bar
+                    currencyBoth: "$ USD + ៛ KHR",
+                    currencyUsd: "$ USD Only",
+                    currencyKhr: "៛ KHR + $ USD",
+                    currencyEur: "€ EUR",
+                    btnTelegramAdmin: "Telegram",
+                    btnQrSetupLabel: "ABA / ACLEDA QR",
+                    btnHeroSetupLabel: "Edit Hero (3 Cards)",
+                    btnSaveHtmlAdmin: "Save HTML",
+
+                    // 2. Hero Section
+                    heroMainTitle: "Seyha Modern Mobile Shop & All Kinds of Original Accessories",
+                    heroShopNowBtn: "View All Products",
+                    heroQuickEditSpan: "Edit 3 Hero Cards",
+
+                    // 3. Dark Feature Box (Built for the Future)
+                    featureHeaderTag: "BUILT FOR THE FUTURE • SHSHOP PRO GUARANTEE",
+                    feat1Title: "INNOVATIVE DESIGN",
+                    feat1Desc: "Latest smartphones and accessories crafted with modern style and premium build quality.",
+                    feat2Title: "POWERFUL PERFORMANCE",
+                    feat2Desc: "Fast chargers, power banks, and genuine gear delivering safe, high-speed power.",
+                    feat3Title: "SEAMLESS TELEGRAM ORDER",
+                    feat3Desc: "Pick your items and send your order invoice directly to our shop Telegram in seconds.",
+                    feat4Title: "SECURE & OFFICIAL WARRANTY",
+                    feat4Desc: "Guaranteed genuine quality, transparent pricing, and reliable official warranty.",
+
+                    // 4. Catalog Section Header
+                    topPicksTag: "EXPLORE OUR TOP PICKS",
+                    itemsSuffix: " items",
+
+                    // 5. Footer Metrics & Experience Banner
+                    metric1Label: "Original Products",
+                    metric2Label: "Happy Customers",
+                    metric3Label: "Satisfaction Rate",
+                    metric4Label: "Telegram Support",
+                    footerQuoteText: "SHShop Pro delivers more than just gadgets — it delivers genuine quality, and instant Telegram ordering.",
+                    footerQuoteAuthor: "— SHShop Pro Official Showroom",
+                    footerCtaTitle: "READY TO UPGRADE YOUR TECH?",
+                    footerCtaDesc: "Select smartphones and accessories in your cart and send the invoice directly to our shop Telegram.",
+                    footerCtaBtn: "OPEN ORDER CART & TELEGRAM",
+
+                    // 6. Cart Drawer & Checkout
+                    btnClearCart: "Clear All",
+                    custDetailsHeader: "Customer & Delivery Info",
+                    custNamePh: "e.g., Sokha",
+                    custPhonePh: "e.g., 012 345 678",
+                    custAddressPh: "e.g., Phnom Penh (Toul Kork) or Province Courier (J&T / Virak Buntham)...",
+                    paymentMethodHeader: "Payment Method (Tap to select below) *",
+                    payBtnABAText: "ABA KHQR",
+                    payBtnACLEDAText: "ACLEDA QR",
+                    labelCashPay: "Cash",
+                    subBadgeQR: "Show QR",
+                    subBadgeCASH: "Cash on Delivery",
+                    activeBankAccountDefault: "Tap any bank button above to open and scan the payment QR Code",
+                    labelUploadReceiptTitle: "Attach Payment Receipt Screenshot",
+                    receiptUploadedBadge: "✓ Attached",
+                    labelClickToUploadReceipt: "Click here to upload payment screenshot",
+                    receiptAttachedTitle: "Payment receipt attached",
+                    receiptAttachedSub: "Will be sent to Telegram with your order invoice",
+                    invoiceBoxHeader: "🧾 SHSHOP PRO INVOICE",
+                    labelTotalUSD: "Total (USD):",
+                    labelTotalKHR: "Total (KHR):",
+
+                    // 7. Customer KHQR Popup Modal
+                    customerQrTitleABA: "ABA KHQR Payment",
+                    customerQrTitleACLEDA: "ACLEDA KHQR Payment",
+                    customerQrSubtitle: "Scan to pay with your mobile banking app",
+                    qrTotalLabel: "Total Amount to Pay:",
+                    dynamicKhqrBadge: "✓ Dynamic KHQR (Exact Amount Embedded)",
+                    qrOpenAppABA: "Open ABA Mobile App to Scan & Pay",
+                    qrOpenAppACLEDA: "Open ACLEDA Mobile App to Scan & Pay",
+                    qrDownloadABA: "Download ABA KHQR Image to Phone",
+                    qrDownloadACLEDA: "Download ACLEDA KHQR Image to Phone",
+                    qrDoneBtn: "Done",
+
+                    // 8. Modals (Login, Password, Product, Category, Exchange Rate)
+                    ownerSecuritySub: "SHShop Pro Owner Security",
+                    adminPassPh: "Enter password...",
+                    btnCancelPinLogin: "Cancel",
+                    btnUnlockOwnerSubmit: "Unlock Owner Mode",
+                    newPassPh: "New password...",
+                    confirmPassPh: "Confirm password...",
+                    btnCancelChangePass: "Cancel",
+                    btnSaveChangePass: "Save Password",
+                    btnCancelProduct: "Cancel",
+                    newCategoryPh: "New category name...",
+                    btnAddCategorySubmit: "Add"
+                }
+            };
+
+            // Detect current active language from the language toggle button (#langLabel)
+            // When #langLabel says "EN", the site is currently in Khmer ('km'). When it says "ខ្មែរ", the site is in English ('en').
+            function getActiveLang() {
+                const labelEl = document.getElementById('langLabel');
+                if (labelEl && labelEl.textContent.trim() === 'ខ្មែរ') {
+                    return 'en';
+                }
+                return 'km';
+            }
+
+            function applyFullPageTranslation() {
+                const lang = getActiveLang();
+                const dict = FULL_TRANSLATIONS[lang];
+                if (!dict) return;
+
+                const setTxt = (id, text) => {
+                    const el = document.getElementById(id);
+                    if (el && text !== undefined) el.textContent = text;
+                };
+                const setPh = (id, text) => {
+                    const el = document.getElementById(id);
+                    if (el && text !== undefined) el.placeholder = text;
+                };
+
+                // 1. Header & Admin Buttons
+                const currSelect = document.getElementById('currencySelect');
+                if (currSelect && currSelect.options.length >= 4) {
+                    currSelect.options[0].text = dict.currencyBoth;
+                    currSelect.options[1].text = dict.currencyUsd;
+                    currSelect.options[2].text = dict.currencyKhr;
+                    currSelect.options[3].text = dict.currencyEur;
+                }
+                setTxt('btnQrSetupLabel', dict.btnQrSetupLabel);
+                setTxt('btnHeroSetupLabel', dict.btnHeroSetupLabel);
+
+                const tgBtnSpan = document.querySelector('button[onclick="openTelegramSettingsModal()"] span');
+                if (tgBtnSpan) tgBtnSpan.textContent = dict.btnTelegramAdmin;
+                const saveHtmlSpan = document.querySelector('button[onclick="openExportHtmlModal()"] span');
+                if (saveHtmlSpan) saveHtmlSpan.textContent = dict.btnSaveHtmlAdmin;
+
+                // 2. Hero Section
+                const heroH2 = document.querySelector('section h2');
+                if (heroH2) heroH2.textContent = dict.heroMainTitle;
+                const heroCtaSpan = document.querySelector('section button[onclick*="catalogAnchor"] > span:first-child');
+                if (heroCtaSpan) heroCtaSpan.textContent = dict.heroShopNowBtn;
+                const heroQuickEditSpan = document.querySelector('#heroQuickEditBtn span');
+                if (heroQuickEditSpan) heroQuickEditSpan.textContent = dict.heroQuickEditSpan;
+
+                // 3. Dark Feature Box (#featuresAnchor)
+                const featBox = document.getElementById('featuresAnchor');
+                if (featBox) {
+                    const tagDiv = featBox.querySelector('div.uppercase.tracking-\\[0\\.2em\\]');
+                    if (tagDiv) tagDiv.textContent = dict.featureHeaderTag;
+                    const h3s = featBox.querySelectorAll('h3');
+                    const ps = featBox.querySelectorAll('p');
+                    if (h3s[0]) h3s[0].textContent = dict.feat1Title;
+                    if (ps[0]) ps[0].textContent = dict.feat1Desc;
+                    if (h3s[1]) h3s[1].textContent = dict.feat2Title;
+                    if (ps[1]) ps[1].textContent = dict.feat2Desc;
+                    if (h3s[2]) h3s[2].textContent = dict.feat3Title;
+                    if (ps[2]) ps[2].textContent = dict.feat3Desc;
+                    if (h3s[3]) h3s[3].textContent = dict.feat4Title;
+                    if (ps[3]) ps[3].textContent = dict.feat4Desc;
+                }
+
+                // 4. Main Catalog Top Picks & Count Badge
+                const mainTopPicks = document.querySelector('main div.uppercase.tracking-\\[0\\.2em\\]');
+                if (mainTopPicks) mainTopPicks.textContent = dict.topPicksTag;
+                const countBadge = document.getElementById('showingCountBadge');
+                if (countBadge) {
+                    const num = parseInt(countBadge.textContent, 10) || 0;
+                    countBadge.textContent = num + dict.itemsSuffix;
+                }
+
+                // 5. Footer Metrics & CTA Banner (#footerBannerAnchor)
+                const footer = document.getElementById('footerBannerAnchor');
+                if (footer) {
+                    const metricLabels = footer.querySelectorAll('.grid > div > div > .text-\\[11px\\]');
+                    if (metricLabels[0]) metricLabels[0].textContent = dict.metric1Label;
+                    if (metricLabels[1]) metricLabels[1].textContent = dict.metric2Label;
+                    if (metricLabels[2]) metricLabels[2].textContent = dict.metric3Label;
+                    if (metricLabels[3]) metricLabels[3].textContent = dict.metric4Label;
+
+                    const quoteP = footer.querySelector('.lg\\:col-span-7 p');
+                    if (quoteP) quoteP.textContent = dict.footerQuoteText;
+                    const quoteAuthor = footer.querySelector('.lg\\:col-span-7 .text-indigo-300');
+                    if (quoteAuthor) quoteAuthor.textContent = dict.footerQuoteAuthor;
+
+                    const ctaH4 = footer.querySelector('.lg\\:col-span-5 h4');
+                    if (ctaH4) ctaH4.textContent = dict.footerCtaTitle;
+                    const ctaP = footer.querySelector('.lg\\:col-span-5 p');
+                    if (ctaP) ctaP.textContent = dict.footerCtaDesc;
+                    const ctaBtnSpan = footer.querySelector('.lg\\:col-span-5 button > span:first-child');
+                    if (ctaBtnSpan) ctaBtnSpan.textContent = dict.footerCtaBtn;
+                }
+
+                // 6. Cart Drawer & Checkout
+                setTxt('btnClearCart', dict.btnClearCart);
+                const custHeaderSpan = document.querySelector('#labelCustomerDetails span');
+                if (custHeaderSpan) custHeaderSpan.textContent = dict.custDetailsHeader;
+                setPh('orderCustomerName', dict.custNamePh);
+                setPh('orderCustomerPhone', dict.custPhonePh);
+                setPh('orderCustomerAddress', dict.custAddressPh);
+
+                const payHeaderSpan = document.querySelector('#labelPaymentMethod span');
+                if (payHeaderSpan) payHeaderSpan.textContent = dict.paymentMethodHeader;
+                setTxt('labelCashPay', dict.labelCashPay);
+
+                const subABA = document.getElementById('subBadgeABA');
+                if (subABA) subABA.innerHTML = `<i class="ph-bold ph-scan text-[11px]"></i> ${dict.subBadgeQR}`;
+                const subACL = document.getElementById('subBadgeACLEDA');
+                if (subACL) subACL.innerHTML = `<i class="ph-bold ph-scan text-[11px]"></i> ${dict.subBadgeQR}`;
+                const subCASH = document.getElementById('subBadgeCASH');
+                if (subCASH) subCASH.innerHTML = `<i class="ph-bold ph-check-circle text-[11px]"></i> ${dict.subBadgeCASH}`;
+
+                setTxt('activeBankAccount', dict.activeBankAccountDefault);
+                setTxt('labelUploadReceiptTitle', dict.labelUploadReceiptTitle);
+                setTxt('receiptUploadedBadge', dict.receiptUploadedBadge);
+                setTxt('labelClickToUploadReceipt', dict.labelClickToUploadReceipt);
+
+                const previewBox = document.getElementById('customerReceiptPreviewBox');
+                if (previewBox) {
+                    const t1 = previewBox.querySelector('.text-xs');
+                    const t2 = previewBox.querySelector('.text-\\[10px\\]');
+                    if (t1) t1.textContent = dict.receiptAttachedTitle;
+                    if (t2) t2.textContent = dict.receiptAttachedSub;
+                }
+
+                const invHeader = document.querySelector('#invoicePreviewBox > div:first-child > span:first-child');
+                if (invHeader) invHeader.textContent = dict.invoiceBoxHeader;
+                setTxt('labelTotalUSD', dict.labelTotalUSD);
+                setTxt('labelTotalKHR', dict.labelTotalKHR);
+
+                // 7. Customer KHQR Popup Modal
+                const qrTitle = document.getElementById('customerQrTitle');
+                const isAcleda = qrTitle && qrTitle.textContent.includes('ACLEDA');
+                if (qrTitle) {
+                    qrTitle.textContent = isAcleda ? dict.customerQrTitleACLEDA : dict.customerQrTitleABA;
+                }
+                setTxt('customerQrSubtitle', dict.customerQrSubtitle);
+                setTxt('dynamicKhqrBadge', dict.dynamicKhqrBadge);
+                setTxt('qrModalOpenAppBtnText', isAcleda ? dict.qrOpenAppACLEDA : dict.qrOpenAppABA);
+                setTxt('qrModalDownloadBtnText', isAcleda ? dict.qrDownloadACLEDA : dict.qrDownloadABA);
+
+                const qrTotalSpan = document.querySelector('#customerQrModal .py-2.px-3\\.5 > span:first-child');
+                if (qrTotalSpan) qrTotalSpan.textContent = dict.qrTotalLabel;
+                const qrDoneBtn = document.querySelector('#customerQrModal button[onclick="closeCustomerQrPopup()"].w-full');
+                if (qrDoneBtn) qrDoneBtn.textContent = dict.qrDoneBtn;
+
+                // 8. Other Modals
+                setPh('adminPasswordInput', dict.adminPassPh);
+                setTxt('btnCancelPinLogin', dict.btnCancelPinLogin);
+                const unlockBtn = document.querySelector('#passwordLoginModal button[type="submit"]');
+                if (unlockBtn) unlockBtn.textContent = dict.btnUnlockOwnerSubmit;
+
+                setPh('newPasswordInput', dict.newPassPh);
+                setPh('confirmPasswordInput', dict.confirmPassPh);
+                const cancelPassBtn = document.querySelector('#changePasswordModal button[onclick="closeChangePasswordModal()"]');
+                if (cancelPassBtn && !cancelPassBtn.querySelector('i')) cancelPassBtn.textContent = dict.btnCancelChangePass;
+                const savePassBtn = document.querySelector('#changePasswordModal button[type="submit"]');
+                if (savePassBtn) savePassBtn.textContent = dict.btnSaveChangePass;
+
+                setTxt('btnCancelProduct', dict.btnCancelProduct);
+                setPh('newCategoryName', dict.newCategoryPh);
+                setTxt('btnAddCategorySubmit', dict.btnAddCategorySubmit);
+            }
+
+            // Run immediately on load and whenever any button (Language toggle, Category, Cart, or QR popup) is clicked
+            window.addEventListener('DOMContentLoaded', () => setTimeout(applyFullPageTranslation, 60));
+            setTimeout(applyFullPageTranslation, 100);
+            document.addEventListener('click', () => setTimeout(applyFullPageTranslation, 40));
+            document.addEventListener('input', () => setTimeout(applyFullPageTranslation, 40));
+        })();
+    </script>
 </body></html>
