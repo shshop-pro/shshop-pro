@@ -5848,22 +5848,128 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             document.addEventListener('input', () => setTimeout(applyFullPageTranslation, 40));
         })();
     </script>
-	<!-- ប៊ូតុងអណ្តែតសម្រាប់អតិថិជនចុចឆាតសួរព័ត៌មានផ្ទាល់តាម Telegram (Floating Direct Telegram Button) -->
-    <button type="button" onclick="openDirectTelegramChat()" id="floatingDirectTgBtn" class="fixed bottom-20 sm:bottom-6 right-3.5 sm:right-6 z-40 inline-flex items-center gap-2.5 pl-3.5 pr-4 py-2.5 rounded-full bg-[#229ED9] hover:bg-[#1b8bc0] text-white font-extrabold text-xs sm:text-sm shadow-floating border-2 border-white dark:border-slate-800 transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer group">
-        <span class="relative flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#229ED9] shadow-xs">
-            <i class="ph-fill ph-telegram-logo text-base group-hover:rotate-12 transition"></i>
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-35"></span>
-        </span>
-        <div class="text-left leading-tight">
-            <span id="floatingDirectTgTitle" class="block font-extrabold text-xs">ឆាតសួរព័ត៌មាន (Telegram)</span>
-            <span id="floatingDirectTgSub" class="block text-[10px] text-sky-100 font-medium">ឆ្លើយតបរហ័ស 24/7</span>
-        </div>
-    </button>
+	<!-- រចនាបថ CSS សម្រាប់អេក្រង់ទូរស័ព្ទតូច (iPhone X) និងប្រអប់សារជូនដំណឹងនៅខាងលើក្រោមម៉ឺនុយ -->
+    <style>
+        /* 1. បង្រួមរបារម៉ឺនុយខាងលើសម្រាប់អេក្រង់ទូរស័ព្ទតូច (ដូចជា iPhone X / 375px) */
+        @media (max-width: 480px) {
+            header {
+                padding-left: 0.5rem !important;
+                padding-right: 0.5rem !important;
+                top: 0.25rem !important;
+            }
+            header > div {
+                padding: 0.35rem 0.6rem !important;
+                border-radius: 1.15rem !important;
+                gap: 0.25rem !important;
+            }
+            /* បង្រួម Logo និងឈ្មោះហាង */
+            header > div > div:first-child > div:first-child {
+                width: 1.65rem !important;
+                height: 1.65rem !important;
+            }
+            #appBrandName {
+                font-size: 0.75rem !important;
+            }
+            #appBrandBadge, #adminModeBadge {
+                font-size: 8px !important;
+                padding: 1px 5px !important;
+            }
+            /* បង្រួមប៊ូតុងម៉ឺនុយ (ភាសា, Dark/Light, កន្ត្រក, Admin) */
+            #langToggleBtn, #ownerLoginBtn, #adminControlsGroup button {
+                padding: 0.25rem 0.45rem !important;
+                font-size: 10px !important;
+                height: 1.65rem !important;
+            }
+            #themeToggleBtn {
+                width: 1.65rem !important;
+                height: 1.65rem !important;
+            }
+            header button[onclick="openCartDrawer()"] {
+                padding: 0.15rem 0.2rem 0.15rem 0.45rem !important;
+                height: 1.65rem !important;
+                font-size: 10px !important;
+            }
+            header button[onclick="openCartDrawer()"] > span:last-child {
+                width: 1.25rem !important;
+                height: 1.25rem !important;
+            }
+        }
 
-    <!-- មុខងារបើកឆាត Telegram ផ្ទាល់ និងបន្ថែមប៊ូតុងឆាតក្នុង Hero & ផ្ទាំងទំនិញ -->
+        /* 2. កំណត់ឱ្យប្រអប់សារជូនដំណឹង (Toast) លោតនៅខាងលើ ក្រោមរបារម៉ឺនុយ */
+        #toastContainer {
+            bottom: auto !important;
+            top: 4.1rem !important;
+            left: 50% !important;
+            right: auto !important;
+            transform: translateX(-50%) !important;
+            align-items: center !important;
+            width: 92% !important;
+            max-width: 380px !important;
+            z-index: 9999 !important;
+        }
+        @media (min-width: 640px) {
+            #toastContainer {
+                top: 4.8rem !important;
+            }
+        }
+    </style>
+
+    <!-- ប៊ូតុងអណ្តែតតូចស្អាតនៅជ្រុងស្តាំ (Telegram, Messenger, Facebook Page) មិនបាំងទំនិញលើទូរស័ព្ទ -->
+    <div id="compactSocialDock" class="fixed bottom-20 sm:bottom-6 right-2.5 sm:right-5 z-40 flex flex-col items-end gap-2 pointer-events-none">
+        <!-- បញ្ជីប៊ូតុងទំនាក់ទំនងទាំង ៣ (អាចចុចបង្រួម ឬពង្រីកបាន) -->
+        <div id="socialDockButtons" class="flex flex-col items-end gap-2 transition-all duration-200 pointer-events-auto">
+            <!-- 1. ប៊ូតុង Facebook Page -->
+            <button type="button" onclick="openDirectFacebookPage()" title="Facebook Page" class="flex items-center gap-2 pl-2.5 pr-3 py-1.5 sm:py-2 rounded-full bg-[#1877F2]/95 hover:bg-[#1877F2] text-white shadow-md backdrop-blur-md border border-white/80 dark:border-slate-700 transition active:scale-95 cursor-pointer">
+                <i class="ph-fill ph-facebook-logo text-base sm:text-lg"></i>
+                <span id="dockFbText" class="text-[10px] sm:text-xs font-extrabold">ផេកហ្វេសប៊ុក</span>
+            </button>
+
+            <!-- 2. ប៊ូតុងឆាត Messenger -->
+            <button type="button" onclick="openDirectMessengerChat()" title="Messenger Chat" class="flex items-center gap-2 pl-2.5 pr-3 py-1.5 sm:py-2 rounded-full bg-gradient-to-r from-[#00B2FF] to-[#006AFF] text-white shadow-md backdrop-blur-md border border-white/80 dark:border-slate-700 transition active:scale-95 cursor-pointer">
+                <i class="ph-fill ph-messenger-logo text-base sm:text-lg"></i>
+                <span id="dockMsgText" class="text-[10px] sm:text-xs font-extrabold">ឆាត Messenger</span>
+            </button>
+
+            <!-- 3. ប៊ូតុងឆាត Telegram -->
+            <button type="button" onclick="openDirectTelegramChat()" title="Telegram Chat" class="flex items-center gap-2 pl-2.5 pr-3 py-1.5 sm:py-2 rounded-full bg-[#229ED9]/95 hover:bg-[#229ED9] text-white shadow-md backdrop-blur-md border border-white/80 dark:border-slate-700 transition active:scale-95 cursor-pointer">
+                <i class="ph-fill ph-telegram-logo text-base sm:text-lg"></i>
+                <span id="dockTgText" class="text-[10px] sm:text-xs font-extrabold">ឆាត Telegram</span>
+            </button>
+        </div>
+
+        <!-- ប៊ូតុងមូលតូចសម្រាប់បិទ/បើកប៊ូតុងឆាត (កុំឱ្យបាំងទំនិញលើទូរស័ព្ទ) -->
+        <button type="button" onclick="toggleSocialDock()" id="socialDockToggleBtn" title="បិទ/បើកប៊ូតុងទំនាក់ទំនង" class="pointer-events-auto w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#12101B]/90 dark:bg-[#D4FF33] text-white dark:text-[#12101B] shadow-floating border border-white/60 dark:border-slate-800 flex items-center justify-center transition active:scale-90 cursor-pointer">
+            <i id="socialDockToggleIcon" class="ph-bold ph-caret-down text-sm sm:text-base"></i>
+        </button>
+    </div>
+
+    <!-- ប្រព័ន្ធគ្រប់គ្រង Telegram, Facebook Page & Messenger + ការបកប្រែភាសា -->
     <script>
         (function() {
-            // ទាញយក Username Telegram របស់ម្ចាស់ហាង (លំនាំដើម Tinkeerr ឬតាមការកំណត់ក្នុង Admin)
+            const SOCIAL_STORAGE_KEY = 'shshop_pro_social_links_v1';
+            // អ្នកអាចដាក់ Link ផេក Facebook លំនាំដើមរបស់អ្នកនៅទីនេះ ឬកែនៅក្នុងផ្ទាំង Admin -> Telegram ក៏បាន
+            let socialConfig = {
+                facebookPageUrl: "https://facebook.com",
+                messengerUsername: ""
+            };
+
+            function loadSocialConfig() {
+                try {
+                    const raw = localStorage.getItem(SOCIAL_STORAGE_KEY);
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        socialConfig = { ...socialConfig, ...parsed };
+                    }
+                } catch (e) {}
+            }
+            loadSocialConfig();
+
+            function saveSocialConfig() {
+                try {
+                    localStorage.setItem(SOCIAL_STORAGE_KEY, JSON.stringify(socialConfig));
+                } catch (e) {}
+            }
+
             function getShopTelegramUsername() {
                 try {
                     const saved = localStorage.getItem('shshop_pro_saved_catalog_v1');
@@ -5877,97 +5983,187 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 return "Tinkeerr";
             }
 
-            // ពិនិត្យភាសាបច្ចុប្បន្ន (km ឬ en)
             function isEnglishMode() {
                 const labelEl = document.getElementById('langLabel');
                 return labelEl && labelEl.textContent.trim() === 'ខ្មែរ';
             }
 
-            // មុខងារបើកឆាត Telegram ផ្ទាល់ជាមួយម្ចាស់ហាង
+            // បិទ/បើករបារប៊ូតុងទំនាក់ទំនង (កុំឱ្យបាំងទំនិញ)
+            let isDockCollapsed = false;
+            window.toggleSocialDock = function() {
+                isDockCollapsed = !isDockCollapsed;
+                const listEl = document.getElementById('socialDockButtons');
+                const iconEl = document.getElementById('socialDockToggleIcon');
+                if (listEl && iconEl) {
+                    if (isDockCollapsed) {
+                        listEl.classList.add('hidden');
+                        iconEl.className = 'ph-fill ph-chat-circle-dots text-lg';
+                    } else {
+                        listEl.classList.remove('hidden');
+                        iconEl.className = 'ph-bold ph-caret-down text-sm sm:text-base';
+                    }
+                }
+            };
+
+            // 1. បើកឆាត Telegram ផ្ទាល់
             window.openDirectTelegramChat = function(customMessage) {
                 const username = getShopTelegramUsername();
                 const isEn = isEnglishMode();
-
-                let defaultMsg = isEn
+                const defaultMsg = isEn
                     ? "Hello SHShop Pro! I would like to ask for some information about your products."
                     : "សួស្តីហាង SHShop Pro! ខ្ញុំចង់សាកសួរព័ត៌មានអំពីទំនិញនៅក្នុងហាង។";
-
                 const finalMsg = customMessage || defaultMsg;
-                const tgUrl = `https://t.me/${username}?text=${encodeURIComponent(finalMsg)}`;
-                window.open(tgUrl, '_blank', 'noopener,noreferrer');
+                window.open(`https://t.me/${username}?text=${encodeURIComponent(finalMsg)}`, '_blank', 'noopener,noreferrer');
             };
 
-            // មុខងារឆាតសួរអំពីទំនិញដែលកំពុងបើកមើលក្នុង Lightbox Popup
+            // 2. បើកឆាត Messenger ផ្ទាល់
+            window.openDirectMessengerChat = function() {
+                loadSocialConfig();
+                let msgLink = (socialConfig.messengerUsername || '').trim();
+                if (!msgLink && socialConfig.facebookPageUrl) {
+                    // ទាញយកឈ្មោះផេកពី Link Facebook ដោយស្វ័យប្រវត្តិ
+                    const cleaned = socialConfig.facebookPageUrl.replace(/\/+$/, '').split('/').pop();
+                    if (cleaned && cleaned !== 'facebook.com' && !cleaned.includes('?')) {
+                        msgLink = `https://m.me/${cleaned}`;
+                    }
+                }
+                if (msgLink && !msgLink.startsWith('http')) {
+                    msgLink = `https://m.me/${msgLink.replace(/^@/, '')}`;
+                }
+                window.open(msgLink || socialConfig.facebookPageUrl || 'https://m.me/', '_blank', 'noopener,noreferrer');
+            };
+
+            // 3. បើកទំព័រ Facebook Page ផ្ទាល់
+            window.openDirectFacebookPage = function() {
+                loadSocialConfig();
+                const fbUrl = (socialConfig.facebookPageUrl || 'https://facebook.com').trim();
+                window.open(fbUrl, '_blank', 'noopener,noreferrer');
+            };
+
+            // ឆាតសួរអំពីទំនិញក្នុងផ្ទាំង Lightbox
             window.askAboutCurrentProductOnTelegram = function() {
                 const title = document.getElementById('lightboxTitle')?.textContent || '';
                 const price = document.getElementById('lightboxPrice')?.textContent || '';
                 const isEn = isEnglishMode();
-
                 const msg = isEn
                     ? `Hello SHShop Pro! I want to ask about this item: ${title} (${price}). Is it available?`
                     : `សួស្តីហាង SHShop Pro! ខ្ញុំចង់សាកសួរព័ត៌មានអំពីទំនិញនេះ៖ ${title} (${price}) តើមានក្នុងស្តុកទេបង?`;
-
                 window.openDirectTelegramChat(msg);
             };
 
-            // បញ្ចូលប៊ូតុងឆាត Telegram នៅផ្នែក Hero និងក្នុងផ្ទាំងមើលទំនិញ (Lightbox) ដោយស្វ័យប្រវត្តិ
-            function injectExtraTelegramChatButtons() {
-                // 1. បន្ថែមប៊ូតុងឆាតនៅជិតប៊ូតុង "មើលទំនិញទាំងអស់" ក្នុងផ្នែក Hero
+            // បន្ថែមប៊ូតុង Telegram, Messenger និង Facebook នៅផ្នែក Hero ខាងលើ និងក្នុងផ្ទាំងទំនិញ
+            function injectSocialButtonsIntoPage() {
+                // 1. បន្ថែមក្នុងផ្នែក Hero
                 const heroCtaBtn = document.querySelector('section button[onclick*="catalogAnchor"]');
-                if (heroCtaBtn && !document.getElementById('heroDirectTgBtn')) {
-                    const tgHeroBtn = document.createElement('button');
-                    tgHeroBtn.id = 'heroDirectTgBtn';
-                    tgHeroBtn.type = 'button';
-                    tgHeroBtn.onclick = () => window.openDirectTelegramChat();
-                    tgHeroBtn.className = "inline-flex items-center gap-2.5 pl-4 pr-3 py-2 rounded-full bg-[#229ED9] hover:bg-[#1b8bc0] text-white font-extrabold text-xs uppercase tracking-wider shadow-md transition active:scale-95 cursor-pointer";
-                    tgHeroBtn.innerHTML = `
-                        <i class="ph-fill ph-telegram-logo text-base"></i>
-                        <span id="heroDirectTgBtnText">ឆាតសួរព័ត៌មានផ្ទាល់</span>
+                if (heroCtaBtn && !document.getElementById('heroSocialGroup')) {
+                    const group = document.createElement('div');
+                    group.id = 'heroSocialGroup';
+                    group.className = "inline-flex flex-wrap items-center gap-2";
+                    group.innerHTML = `
+                        <button type="button" onclick="openDirectTelegramChat()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#229ED9] hover:bg-[#1b8bc0] text-white font-extrabold text-xs shadow-sm transition active:scale-95 cursor-pointer">
+                            <i class="ph-fill ph-telegram-logo text-sm"></i>
+                            <span id="heroTgBtnText">ឆាត Telegram</span>
+                        </button>
+                        <button type="button" onclick="openDirectMessengerChat()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#006AFF] hover:bg-[#0055cc] text-white font-extrabold text-xs shadow-sm transition active:scale-95 cursor-pointer">
+                            <i class="ph-fill ph-messenger-logo text-sm"></i>
+                            <span id="heroMsgBtnText">Messenger</span>
+                        </button>
+                        <button type="button" onclick="openDirectFacebookPage()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-[#1877F2]/15 hover:bg-[#1877F2] text-[#1877F2] hover:text-white border border-[#1877F2]/30 font-extrabold text-xs transition active:scale-95 cursor-pointer">
+                            <i class="ph-fill ph-facebook-logo text-sm"></i>
+                            <span id="heroFbBtnText">Facebook Page</span>
+                        </button>
                     `;
-                    heroCtaBtn.parentNode.insertBefore(tgHeroBtn, heroCtaBtn.nextSibling);
+                    heroCtaBtn.parentNode.insertBefore(group, heroCtaBtn.nextSibling);
                 }
 
-                // 2. បន្ថែមប៊ូតុងឆាតសួរអំពីទំនិញនៅក្នុងផ្ទាំង Lightbox Modal
+                // 2. បន្ថែមក្នុងផ្ទាំងមើលទំនិញ (Lightbox Modal)
                 const lightboxDescBox = document.getElementById('lightboxDescContainer');
-                if (lightboxDescBox && !document.getElementById('lightboxAskTgBtn')) {
-                    const askBtn = document.createElement('button');
-                    askBtn.id = 'lightboxAskTgBtn';
-                    askBtn.type = 'button';
-                    askBtn.onclick = () => window.askAboutCurrentProductOnTelegram();
-                    askBtn.className = "w-full py-2.5 px-4 rounded-xl bg-[#229ED9]/12 hover:bg-[#229ED9] text-[#229ED9] hover:text-white border border-[#229ED9]/30 font-extrabold text-xs flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer";
-                    askBtn.innerHTML = `
-                        <i class="ph-fill ph-telegram-logo text-base"></i>
-                        <span id="lightboxAskTgBtnText">ឆាតសួរព័ត៌មានអំពីទំនិញនេះតាម Telegram</span>
+                if (lightboxDescBox && !document.getElementById('lightboxSocialRow')) {
+                    const row = document.createElement('div');
+                    row.id = 'lightboxSocialRow';
+                    row.className = "grid grid-cols-2 gap-2 pt-1";
+                    row.innerHTML = `
+                        <button type="button" onclick="askAboutCurrentProductOnTelegram()" class="py-2 px-3 rounded-xl bg-[#229ED9]/15 hover:bg-[#229ED9] text-[#229ED9] hover:text-white border border-[#229ED9]/30 font-extrabold text-xs flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer">
+                            <i class="ph-fill ph-telegram-logo text-base"></i>
+                            <span id="lightboxAskTgText">សួរតាម Telegram</span>
+                        </button>
+                        <button type="button" onclick="openDirectMessengerChat()" class="py-2 px-3 rounded-xl bg-[#006AFF]/15 hover:bg-[#006AFF] text-[#006AFF] hover:text-white border border-[#006AFF]/30 font-extrabold text-xs flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer">
+                            <i class="ph-fill ph-messenger-logo text-base"></i>
+                            <span id="lightboxAskMsgText">សួរតាម Messenger</span>
+                        </button>
                     `;
-                    lightboxDescBox.parentNode.appendChild(askBtn);
+                    lightboxDescBox.parentNode.appendChild(row);
+                }
+
+                // 3. បន្ថែមប្រអប់កំណត់ Link Facebook Page & Messenger នៅក្នុងផ្ទាំង Admin (Telegram Settings Modal)
+                const tgForm = document.querySelector('#telegramSettingsModal form');
+                if (tgForm && !document.getElementById('adminFbSettingsBox')) {
+                    const fbBox = document.createElement('div');
+                    fbBox.id = 'adminFbSettingsBox';
+                    fbBox.className = "pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2.5";
+                    fbBox.innerHTML = `
+                        <span class="text-xs font-extrabold uppercase tracking-wider text-[#1877F2] flex items-center gap-1.5">
+                            <i class="ph-fill ph-facebook-logo text-base"></i>
+                            <span>3. កំណត់តំណភ្ជាប់ Facebook Page & Messenger</span>
+                        </span>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">តំណភ្ជាប់ Facebook Page (URL)</label>
+                            <input type="url" id="adminFbPageInput" placeholder="https://www.facebook.com/YourShopPage" class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">Username ឬ Link សម្រាប់ឆាត Messenger (m.me)</label>
+                            <input type="text" id="adminMessengerInput" placeholder="ឧ. YourShopPage ឬ https://m.me/YourShopPage" class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none">
+                        </div>
+                    `;
+                    const submitFooter = tgForm.lastElementChild;
+                    tgForm.insertBefore(fbBox, submitFooter);
+
+                    // ផ្ទុកទិន្នន័យចូលប្រអប់ និងរក្សាទុកពេលចុច Save
+                    const fbIn = document.getElementById('adminFbPageInput');
+                    const msgIn = document.getElementById('adminMessengerInput');
+                    if (fbIn) fbIn.value = socialConfig.facebookPageUrl || '';
+                    if (msgIn) msgIn.value = socialConfig.messengerUsername || '';
+
+                    tgForm.addEventListener('submit', () => {
+                        socialConfig.facebookPageUrl = (document.getElementById('adminFbPageInput')?.value || '').trim();
+                        socialConfig.messengerUsername = (document.getElementById('adminMessengerInput')?.value || '').trim();
+                        saveSocialConfig();
+                    });
                 }
             }
 
-            // បកប្រែអក្សរលើប៊ូតុង Telegram ទាំង ៣ តាមភាសាខ្មែរ និងអង់គ្លេស
-            function updateDirectTelegramLabels() {
+            // បកប្រែអក្សរលើប៊ូតុងតាមភាសាខ្មែរ និងអង់គ្លេស
+            function updateSocialButtonLabels() {
                 const isEn = isEnglishMode();
+                const setTxt = (id, km, en) => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = isEn ? en : km;
+                };
 
-                const floatTitle = document.getElementById('floatingDirectTgTitle');
-                const floatSub = document.getElementById('floatingDirectTgSub');
-                const heroText = document.getElementById('heroDirectTgBtnText');
-                const askText = document.getElementById('lightboxAskTgBtnText');
+                setTxt('dockFbText', 'ផេកហ្វេសប៊ុក', 'Facebook');
+                setTxt('dockMsgText', 'ឆាត Messenger', 'Messenger');
+                setTxt('dockTgText', 'ឆាត Telegram', 'Telegram');
 
-                if (floatTitle) floatTitle.textContent = isEn ? "Chat on Telegram" : "ឆាតសួរព័ត៌មាន (Telegram)";
-                if (floatSub) floatSub.textContent = isEn ? "Fast Reply 24/7" : "ឆ្លើយតបរហ័ស 24/7";
-                if (heroText) heroText.textContent = isEn ? "Chat on Telegram" : "ឆាតសួរព័ត៌មានផ្ទាល់";
-                if (askText) askText.textContent = isEn ? "Ask About This Item on Telegram" : "ឆាតសួរព័ត៌មានអំពីទំនិញនេះតាម Telegram";
+                setTxt('heroTgBtnText', 'ឆាត Telegram', 'Telegram Chat');
+                setTxt('heroMsgBtnText', 'ឆាត Messenger', 'Messenger');
+                setTxt('heroFbBtnText', 'ផេកហ្វេសប៊ុក', 'Facebook Page');
+
+                setTxt('lightboxAskTgText', 'សួរតាម Telegram', 'Ask on Telegram');
+                setTxt('lightboxAskMsgText', 'សួរតាម Messenger', 'Ask on Messenger');
             }
 
             window.addEventListener('DOMContentLoaded', () => {
-                injectExtraTelegramChatButtons();
-                updateDirectTelegramLabels();
+                injectSocialButtonsIntoPage();
+                updateSocialButtonLabels();
             });
             setTimeout(() => {
-                injectExtraTelegramChatButtons();
-                updateDirectTelegramLabels();
-            }, 80);
-
-            document.addEventListener('click', () => setTimeout(updateDirectTelegramLabels, 40));
+                injectSocialButtonsIntoPage();
+                updateSocialButtonLabels();
+            }, 90);
+            document.addEventListener('click', () => setTimeout(() => {
+                injectSocialButtonsIntoPage();
+                updateSocialButtonLabels();
+            }, 40));
         })();
     </script>
 </body></html>
