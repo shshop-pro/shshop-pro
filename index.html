@@ -5848,4 +5848,126 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             document.addEventListener('input', () => setTimeout(applyFullPageTranslation, 40));
         })();
     </script>
+	<!-- ប៊ូតុងអណ្តែតសម្រាប់អតិថិជនចុចឆាតសួរព័ត៌មានផ្ទាល់តាម Telegram (Floating Direct Telegram Button) -->
+    <button type="button" onclick="openDirectTelegramChat()" id="floatingDirectTgBtn" class="fixed bottom-20 sm:bottom-6 right-3.5 sm:right-6 z-40 inline-flex items-center gap-2.5 pl-3.5 pr-4 py-2.5 rounded-full bg-[#229ED9] hover:bg-[#1b8bc0] text-white font-extrabold text-xs sm:text-sm shadow-floating border-2 border-white dark:border-slate-800 transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer group">
+        <span class="relative flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#229ED9] shadow-xs">
+            <i class="ph-fill ph-telegram-logo text-base group-hover:rotate-12 transition"></i>
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-35"></span>
+        </span>
+        <div class="text-left leading-tight">
+            <span id="floatingDirectTgTitle" class="block font-extrabold text-xs">ឆាតសួរព័ត៌មាន (Telegram)</span>
+            <span id="floatingDirectTgSub" class="block text-[10px] text-sky-100 font-medium">ឆ្លើយតបរហ័ស 24/7</span>
+        </div>
+    </button>
+
+    <!-- មុខងារបើកឆាត Telegram ផ្ទាល់ និងបន្ថែមប៊ូតុងឆាតក្នុង Hero & ផ្ទាំងទំនិញ -->
+    <script>
+        (function() {
+            // ទាញយក Username Telegram របស់ម្ចាស់ហាង (លំនាំដើម Tinkeerr ឬតាមការកំណត់ក្នុង Admin)
+            function getShopTelegramUsername() {
+                try {
+                    const saved = localStorage.getItem('shshop_pro_saved_catalog_v1');
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        if (parsed?.telegramConfig?.username) {
+                            return parsed.telegramConfig.username.replace(/^@/, '').trim();
+                        }
+                    }
+                } catch (e) {}
+                return "Tinkeerr";
+            }
+
+            // ពិនិត្យភាសាបច្ចុប្បន្ន (km ឬ en)
+            function isEnglishMode() {
+                const labelEl = document.getElementById('langLabel');
+                return labelEl && labelEl.textContent.trim() === 'ខ្មែរ';
+            }
+
+            // មុខងារបើកឆាត Telegram ផ្ទាល់ជាមួយម្ចាស់ហាង
+            window.openDirectTelegramChat = function(customMessage) {
+                const username = getShopTelegramUsername();
+                const isEn = isEnglishMode();
+
+                let defaultMsg = isEn
+                    ? "Hello SHShop Pro! I would like to ask for some information about your products."
+                    : "សួស្តីហាង SHShop Pro! ខ្ញុំចង់សាកសួរព័ត៌មានអំពីទំនិញនៅក្នុងហាង។";
+
+                const finalMsg = customMessage || defaultMsg;
+                const tgUrl = `https://t.me/${username}?text=${encodeURIComponent(finalMsg)}`;
+                window.open(tgUrl, '_blank', 'noopener,noreferrer');
+            };
+
+            // មុខងារឆាតសួរអំពីទំនិញដែលកំពុងបើកមើលក្នុង Lightbox Popup
+            window.askAboutCurrentProductOnTelegram = function() {
+                const title = document.getElementById('lightboxTitle')?.textContent || '';
+                const price = document.getElementById('lightboxPrice')?.textContent || '';
+                const isEn = isEnglishMode();
+
+                const msg = isEn
+                    ? `Hello SHShop Pro! I want to ask about this item: ${title} (${price}). Is it available?`
+                    : `សួស្តីហាង SHShop Pro! ខ្ញុំចង់សាកសួរព័ត៌មានអំពីទំនិញនេះ៖ ${title} (${price}) តើមានក្នុងស្តុកទេបង?`;
+
+                window.openDirectTelegramChat(msg);
+            };
+
+            // បញ្ចូលប៊ូតុងឆាត Telegram នៅផ្នែក Hero និងក្នុងផ្ទាំងមើលទំនិញ (Lightbox) ដោយស្វ័យប្រវត្តិ
+            function injectExtraTelegramChatButtons() {
+                // 1. បន្ថែមប៊ូតុងឆាតនៅជិតប៊ូតុង "មើលទំនិញទាំងអស់" ក្នុងផ្នែក Hero
+                const heroCtaBtn = document.querySelector('section button[onclick*="catalogAnchor"]');
+                if (heroCtaBtn && !document.getElementById('heroDirectTgBtn')) {
+                    const tgHeroBtn = document.createElement('button');
+                    tgHeroBtn.id = 'heroDirectTgBtn';
+                    tgHeroBtn.type = 'button';
+                    tgHeroBtn.onclick = () => window.openDirectTelegramChat();
+                    tgHeroBtn.className = "inline-flex items-center gap-2.5 pl-4 pr-3 py-2 rounded-full bg-[#229ED9] hover:bg-[#1b8bc0] text-white font-extrabold text-xs uppercase tracking-wider shadow-md transition active:scale-95 cursor-pointer";
+                    tgHeroBtn.innerHTML = `
+                        <i class="ph-fill ph-telegram-logo text-base"></i>
+                        <span id="heroDirectTgBtnText">ឆាតសួរព័ត៌មានផ្ទាល់</span>
+                    `;
+                    heroCtaBtn.parentNode.insertBefore(tgHeroBtn, heroCtaBtn.nextSibling);
+                }
+
+                // 2. បន្ថែមប៊ូតុងឆាតសួរអំពីទំនិញនៅក្នុងផ្ទាំង Lightbox Modal
+                const lightboxDescBox = document.getElementById('lightboxDescContainer');
+                if (lightboxDescBox && !document.getElementById('lightboxAskTgBtn')) {
+                    const askBtn = document.createElement('button');
+                    askBtn.id = 'lightboxAskTgBtn';
+                    askBtn.type = 'button';
+                    askBtn.onclick = () => window.askAboutCurrentProductOnTelegram();
+                    askBtn.className = "w-full py-2.5 px-4 rounded-xl bg-[#229ED9]/12 hover:bg-[#229ED9] text-[#229ED9] hover:text-white border border-[#229ED9]/30 font-extrabold text-xs flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer";
+                    askBtn.innerHTML = `
+                        <i class="ph-fill ph-telegram-logo text-base"></i>
+                        <span id="lightboxAskTgBtnText">ឆាតសួរព័ត៌មានអំពីទំនិញនេះតាម Telegram</span>
+                    `;
+                    lightboxDescBox.parentNode.appendChild(askBtn);
+                }
+            }
+
+            // បកប្រែអក្សរលើប៊ូតុង Telegram ទាំង ៣ តាមភាសាខ្មែរ និងអង់គ្លេស
+            function updateDirectTelegramLabels() {
+                const isEn = isEnglishMode();
+
+                const floatTitle = document.getElementById('floatingDirectTgTitle');
+                const floatSub = document.getElementById('floatingDirectTgSub');
+                const heroText = document.getElementById('heroDirectTgBtnText');
+                const askText = document.getElementById('lightboxAskTgBtnText');
+
+                if (floatTitle) floatTitle.textContent = isEn ? "Chat on Telegram" : "ឆាតសួរព័ត៌មាន (Telegram)";
+                if (floatSub) floatSub.textContent = isEn ? "Fast Reply 24/7" : "ឆ្លើយតបរហ័ស 24/7";
+                if (heroText) heroText.textContent = isEn ? "Chat on Telegram" : "ឆាតសួរព័ត៌មានផ្ទាល់";
+                if (askText) askText.textContent = isEn ? "Ask About This Item on Telegram" : "ឆាតសួរព័ត៌មានអំពីទំនិញនេះតាម Telegram";
+            }
+
+            window.addEventListener('DOMContentLoaded', () => {
+                injectExtraTelegramChatButtons();
+                updateDirectTelegramLabels();
+            });
+            setTimeout(() => {
+                injectExtraTelegramChatButtons();
+                updateDirectTelegramLabels();
+            }, 80);
+
+            document.addEventListener('click', () => setTimeout(updateDirectTelegramLabels, 40));
+        })();
+    </script>
 </body></html>
