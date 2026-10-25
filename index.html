@@ -6149,4 +6149,21 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             }, 40));
         })();
     </script>
+	<!-- ផ្លាស់ទីប្រអប់ពណ៌ខ្មៅ (featuresAnchor) ទៅដាក់នៅខាងក្រោមបញ្ជីទំនិញទាំងអស់ (All Products) -->
+    <script>
+        (function() {
+            function moveFeaturesBoxBelowProducts() {
+                const featuresBox = document.getElementById('featuresAnchor');
+                const mainCatalog = document.querySelector('main');
+                if (featuresBox && mainCatalog) {
+                    // បន្ថែមគម្លាតខាងលើបន្តិចឱ្យមើលទៅស្អាត
+                    featuresBox.classList.add('mt-10');
+                    // ដាក់នៅខាងក្រោមផ្នែកទំនិញទាំងអស់ក្នុង <main>
+                    mainCatalog.appendChild(featuresBox);
+                }
+            }
+            window.addEventListener('DOMContentLoaded', moveFeaturesBoxBelowProducts);
+            moveFeaturesBoxBelowProducts();
+        })();
+    </script>
 </body></html>
