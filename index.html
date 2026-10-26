@@ -6540,7 +6540,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         const HERO_PNG_STORAGE_KEY = 'shshop_pro_4_floating_png_v2';
         const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'shshop-pro-app';
 
-        // Default 4 Transparent PNG Gadgets with Default Size (px), Position (Left %, Top %), and Rotation (deg)
         const DEFAULT_4_HERO_PNGS = [
             {
                 productId: "prod-1",
@@ -6628,7 +6627,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             }
         }
 
-        // Render the 4 Floating PNGs using their exact Size, Left %, Top %, and Rotation deg
         function build4FloatingPngStage() {
             const oldCard1 = document.getElementById('heroCard1');
             const oldCard2 = document.getElementById('heroCard2');
@@ -6655,11 +6653,9 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             }
 
             stage.setAttribute('data-hero-pngs', JSON.stringify(hero4Items));
-
             const zIndexes = [15, 25, 30, 20];
 
             stage.innerHTML = `
-                <!-- Soft Ground Shadow Beneath Devices -->
                 <div class="absolute bottom-6 left-1/4 w-60 sm:w-80 h-6 bg-slate-900/20 dark:bg-black/50 rounded-full blur-xl pointer-events-none"></div>
             ` + hero4Items.map((item, idx) => {
                 const cfg = normalizeItemWithDefaults(item, idx);
@@ -6685,7 +6681,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             }).join('');
         }
 
-        // Open Order Lightbox when Customer clicks any of the 4 Floating PNGs
         window.triggerHeroPngOrder = function(slotIdx) {
             const cfg = hero4Items[slotIdx];
             if (!cfg) return;
@@ -6700,29 +6695,67 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             }
         };
 
-        // Live-update Size, Left %, Top %, and Rotation on the stage while Owner drags sliders
+        // Render Live Mini-Stage inside the Customizer Modal so Owner sees all 4 PNGs moving in real time!
+        function updateLiveModalMiniStage(activeHighlightIdx = -1) {
+            const miniStage = document.getElementById('liveHeroMiniStageInner');
+            if (!miniStage) return;
+
+            const zIndexes = [15, 25, 30, 20];
+            miniStage.innerHTML = [0, 1, 2, 3].map(idx => {
+                const sizeVal = Number(document.getElementById(`pngSlot${idx}Size`)?.value || hero4Items[idx]?.size || 200);
+                const leftVal = Number(document.getElementById(`pngSlot${idx}Left`)?.value || hero4Items[idx]?.left || 0);
+                const topVal = Number(document.getElementById(`pngSlot${idx}Top`)?.value || hero4Items[idx]?.top || 0);
+                const rotVal = Number(document.getElementById(`pngSlot${idx}Rotate`)?.value || hero4Items[idx]?.rotate || 0);
+                const imgSrc = tempUploadedPngs[idx] || hero4Items[idx]?.image || '';
+                const isHighlighted = activeHighlightIdx === idx;
+
+                return `
+                    <div style="left: ${leftVal}%; top: ${topVal}%; width: ${sizeVal}px; z-index: ${zIndexes[idx]};"
+                         class="absolute flex flex-col items-center pointer-events-none transition-all duration-75 ${isHighlighted ? 'ring-2 ring-[#D4FF33] rounded-2xl bg-indigo-500/10 p-1' : ''}">
+                        <span class="px-1.5 py-0.2 rounded-full bg-indigo-600 text-white text-[9px] font-extrabold mb-0.5 shadow">#${idx + 1}</span>
+                        <img src="${imgSrc}" style="transform: rotate(${rotVal}deg);" class="w-full h-auto object-contain drop-shadow-xl">
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Toggle "See-Through Mode" so you can also see the real page behind the modal
+        let isSeeThroughActive = false;
+        window.toggleModalSeeThroughMode = function() {
+            isSeeThroughActive = !isSeeThroughActive;
+            const modalBackdrop = document.getElementById('heroSettingsModal');
+            const modalBox = modalBackdrop?.firstElementChild;
+            const btnText = document.getElementById('seeThroughBtnText');
+
+            if (modalBackdrop && modalBox) {
+                if (isSeeThroughActive) {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    modalBackdrop.className = "fixed inset-0 z-50 flex items-end sm:items-center justify-end p-0 sm:p-4 bg-transparent pointer-events-none overflow-y-auto";
+                    modalBox.className = "modal-animate bg-white/85 dark:bg-[#0f111a]/85 backdrop-blur-md border-t sm:border-2 border-indigo-500 rounded-t-3xl sm:rounded-3xl max-w-md w-full max-h-[88dvh] flex flex-col shadow-floating overflow-hidden my-auto pointer-events-auto";
+                    if (btnText) btnText.textContent = "បិទមុខងារមើលធ្លុះ (Normal View)";
+                } else {
+                    modalBackdrop.className = "fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/65 dark:bg-black/80 backdrop-blur-sm overflow-y-auto";
+                    modalBox.className = "modal-animate bg-white dark:bg-[#0f111a] border-t sm:border border-slate-200 dark:border-slate-800 rounded-t-3xl sm:rounded-3xl max-w-2xl w-full max-h-[92dvh] flex flex-col shadow-floating overflow-hidden my-auto";
+                    if (btnText) btnText.textContent = "មើលធ្លុះទៅវេបសាយផ្ទាល់ (See-Through)";
+                }
+            }
+        };
+
         window.liveUpdatePngTransform = function(idx) {
             const sizeVal = Number(document.getElementById(`pngSlot${idx}Size`)?.value || 200);
             const leftVal = Number(document.getElementById(`pngSlot${idx}Left`)?.value || 0);
             const topVal = Number(document.getElementById(`pngSlot${idx}Top`)?.value || 0);
             const rotVal = Number(document.getElementById(`pngSlot${idx}Rotate`)?.value || 0);
 
-            // Update value labels in the modal
-            const sizeLbl = document.getElementById(`pngSlot${idx}SizeVal`);
-            const leftLbl = document.getElementById(`pngSlot${idx}LeftVal`);
-            const topLbl = document.getElementById(`pngSlot${idx}TopVal`);
-            const rotLbl = document.getElementById(`pngSlot${idx}RotateVal`);
+            document.getElementById(`pngSlot${idx}SizeVal`).textContent = `${sizeVal}px`;
+            document.getElementById(`pngSlot${idx}LeftVal`).textContent = `${leftVal}%`;
+            document.getElementById(`pngSlot${idx}TopVal`).textContent = `${topVal}%`;
+            document.getElementById(`pngSlot${idx}RotateVal`).textContent = `${rotVal}°`;
 
-            if (sizeLbl) sizeLbl.textContent = `${sizeVal}px`;
-            if (leftLbl) leftLbl.textContent = `${leftVal}%`;
-            if (topLbl) topLbl.textContent = `${topVal}%`;
-            if (rotLbl) rotLbl.textContent = `${rotVal}°`;
+            // 1. Update Live Mini-Stage at top of Modal
+            updateLiveModalMiniStage(idx);
 
-            // Update preview box rotation
-            const previewImg = document.getElementById(`pngSlot${idx}Preview`);
-            if (previewImg) previewImg.style.transform = `rotate(${rotVal}deg)`;
-
-            // Live-update the actual floating PNG on the page behind the modal
+            // 2. Update Real Website Stage behind Modal
             const slotEl = document.getElementById(`heroPngFloatingSlot-${idx}`);
             const imgEl = document.getElementById(`heroPngFloatingImg-${idx}`);
             if (slotEl) {
@@ -6735,7 +6768,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             }
         };
 
-        // Reset a single slot's size, position & rotation back to default
         window.resetSinglePngTransform = function(idx) {
             const def = DEFAULT_4_HERO_PNGS[idx] || DEFAULT_4_HERO_PNGS[0];
             document.getElementById(`pngSlot${idx}Size`).value = def.size;
@@ -6745,15 +6777,14 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             window.liveUpdatePngTransform(idx);
         };
 
-        // Upgrade Owner Modal to include Size, Left %, Top %, and Rotation Sliders for all 4 PNGs
         function upgradeAdminHeroModalTo4PngSlots() {
             const formEl = document.querySelector('#heroSettingsModal form');
-            if (!formEl || formEl.dataset.upgraded4PngTransform === "true") return;
-            formEl.dataset.upgraded4PngTransform = "true";
+            if (!formEl || formEl.dataset.upgradedLivePreview === "true") return;
+            formEl.dataset.upgradedLivePreview = "true";
 
             const modalTitle = document.querySelector('#heroSettingsModal h3');
             if (modalTitle) {
-                modalTitle.textContent = "កំណត់រូប PNG ទំហំ ទីតាំង និងមុំបង្វិលទាំង 4 (4 Floating PNG Customizer)";
+                modalTitle.textContent = "កំណត់រូប PNG ទំហំ ទីតាំង និងមុំបង្វិលទាំង 4 (Live Preview)";
             }
 
             const slotLabels = [
@@ -6763,47 +6794,64 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 { title: "4. រូប PNG ទី 4 (Bottom-Right)", badge: "bg-amber-600" }
             ];
 
-            formEl.innerHTML = slotLabels.map((s, i) => `
-                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 space-y-3">
+            // Sticky Live Preview Canvas right at the top of the modal so you ALWAYS see your changes!
+            const livePreviewBoxHtml = `
+                <div class="sticky -top-5 z-30 bg-white/95 dark:bg-[#0f111a]/95 backdrop-blur-md pt-2 pb-3 border-b border-slate-200 dark:border-slate-800 -mx-2 px-2">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-extrabold text-indigo-600 dark:text-[#D4FF33] flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                            ផ្ទាំងមើលការកែប្រែផ្ទាល់ (Live Preview Stage)
+                        </span>
+                        <button type="button" onclick="toggleModalSeeThroughMode()" class="px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-700 dark:text-indigo-300 text-[11px] font-extrabold flex items-center gap-1 cursor-pointer transition">
+                            <i class="ph-bold ph-eye"></i>
+                            <span id="seeThroughBtnText">មើលធ្លុះទៅវេបសាយផ្ទាល់ (See-Through)</span>
+                        </button>
+                    </div>
+                    <!-- Scaled 50% Live Mirror of the 460px Hero Stage -->
+                    <div class="relative w-full h-52 sm:h-60 rounded-2xl bg-gradient-to-br from-[#F3F1FF] via-[#FAF9FF] to-[#EAE8F8] dark:from-[#0E0C18] dark:to-[#181528] border-2 border-indigo-500/30 overflow-hidden flex items-center justify-center shadow-inner">
+                        <!-- Purple Glow Circle Mirror -->
+                        <div class="w-40 h-40 rounded-full bg-indigo-400/25 dark:bg-indigo-600/30 blur-xs absolute pointer-events-none"></div>
+                        <!-- Scaled Stage Container -->
+                        <div id="liveHeroMiniStageInner" class="relative w-[520px] h-[440px] shrink-0" style="transform: scale(0.5); transform-origin: center center;"></div>
+                    </div>
+                </div>
+            `;
+
+            formEl.innerHTML = livePreviewBoxHtml + slotLabels.map((s, i) => `
+                <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 space-y-2.5">
                     <div class="flex items-center justify-between gap-2">
                         <span class="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
                             <span class="w-5 h-5 rounded-full ${s.badge} text-white text-[11px] flex items-center justify-center">${i + 1}</span>
                             ${s.title}
                         </span>
                         <button type="button" onclick="resetSinglePngTransform(${i})" class="text-[11px] font-bold text-indigo-600 dark:text-[#D4FF33] hover:underline flex items-center gap-1 cursor-pointer">
-                            <i class="ph-bold ph-arrow-counter-clockwise"></i> កំណត់ទីតាំងដើមវិញ
+                            <i class="ph-bold ph-arrow-counter-clockwise"></i> កំណត់ដើមវិញ
                         </button>
                     </div>
 
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">ភ្ជាប់ទៅទំនិញក្នុងហាង (ពេលភ្ញៀវចុចលើរូប PNG នឹងលោតផ្ទាំងកម្មង់ទំនិញនេះ)</label>
-                        <select id="pngSlot${i}ProductSelect" onchange="handlePngProductLink(${i}, this.value)" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white"></select>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 items-center">
-                        <!-- Checkerboard transparency preview box -->
-                        <div class="aspect-square w-28 mx-auto rounded-2xl border border-slate-300 dark:border-slate-700 overflow-hidden flex items-center justify-center p-2" style="background-image: radial-gradient(#cbd5e1 1px, transparent 1px); background-size: 10px 10px;">
-                            <img id="pngSlot${i}Preview" src="" alt="PNG ${i + 1}" class="w-full h-full object-contain drop-shadow-md transition-transform">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-0.5">ភ្ជាប់ទៅទំនិញក្នុងហាង (ចុចរូបលោតកម្មង់)</label>
+                            <select id="pngSlot${i}ProductSelect" onchange="handlePngProductLink(${i}, this.value)" class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white"></select>
                         </div>
-
-                        <div class="sm:col-span-2 space-y-2">
-                            <input type="text" id="pngSlot${i}Title" required placeholder="ឈ្មោះទំនិញ (ឧ. iPhone 16 Pro Max)" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white">
-                            
-                            <div class="flex flex-wrap items-center gap-2">
-                                <label class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl ${s.badge} hover:opacity-90 text-white font-bold text-xs cursor-pointer transition shrink-0 shadow-xs">
-                                    <i class="ph-bold ph-upload-simple"></i>
-                                    <span>បង្ហោះរូប PNG</span>
-                                    <input type="file" accept="image/png,image/webp,image/*" onchange="handleTransparentPngUpload(event, ${i})" class="hidden">
-                                </label>
-                                <input type="url" id="pngSlot${i}Url" oninput="handleTransparentPngUrl(${i}, this.value)" placeholder="ឬដាក់ Link រូបភាព PNG (URL)..." class="flex-1 min-w-[140px] px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white">
-                            </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-0.5">ឈ្មោះទំនិញបង្ហាញលើរូប</label>
+                            <input type="text" id="pngSlot${i}Title" required placeholder="ឈ្មោះទំនិញ..." class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white">
                         </div>
                     </div>
 
-                    <!-- 4 Sliders: Size (px), Horizontal X (%), Vertical Y (%), Rotation (deg) -->
-                    <div class="pt-2 border-t border-slate-200/80 dark:border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <!-- 1. Size Slider -->
-                        <div class="bg-white dark:bg-slate-800/90 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${s.badge} hover:opacity-90 text-white font-bold text-xs cursor-pointer transition shrink-0 shadow-xs">
+                            <i class="ph-bold ph-upload-simple"></i>
+                            <span>បង្ហោះរូប PNG ទី ${i + 1}</span>
+                            <input type="file" accept="image/png,image/webp,image/*" onchange="handleTransparentPngUpload(event, ${i})" class="hidden">
+                        </label>
+                        <input type="url" id="pngSlot${i}Url" oninput="handleTransparentPngUrl(${i}, this.value)" placeholder="ឬដាក់ Link រូបភាព PNG (URL)..." class="flex-1 min-w-[140px] px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white">
+                    </div>
+
+                    <!-- 4 Sliders: Size (px), Left X (%), Top Y (%), Rotate (deg) -->
+                    <div class="pt-1.5 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div class="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200/70 dark:border-slate-700">
                             <div class="flex justify-between text-[10px] font-extrabold text-slate-600 dark:text-slate-300 mb-1">
                                 <span>ទំហំ (Size)</span>
                                 <span id="pngSlot${i}SizeVal" class="font-mono text-indigo-600 dark:text-[#D4FF33]">200px</span>
@@ -6811,8 +6859,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                             <input type="range" id="pngSlot${i}Size" min="80" max="420" step="5" oninput="liveUpdatePngTransform(${i})" class="w-full accent-indigo-600 cursor-pointer">
                         </div>
 
-                        <!-- 2. Left X Position Slider -->
-                        <div class="bg-white dark:bg-slate-800/90 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                        <div class="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200/70 dark:border-slate-700">
                             <div class="flex justify-between text-[10px] font-extrabold text-slate-600 dark:text-slate-300 mb-1">
                                 <span>ឆ្វេង-ស្តាំ (X)</span>
                                 <span id="pngSlot${i}LeftVal" class="font-mono text-indigo-600 dark:text-[#D4FF33]">10%</span>
@@ -6820,8 +6867,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                             <input type="range" id="pngSlot${i}Left" min="-15" max="85" step="1" oninput="liveUpdatePngTransform(${i})" class="w-full accent-indigo-600 cursor-pointer">
                         </div>
 
-                        <!-- 3. Top Y Position Slider -->
-                        <div class="bg-white dark:bg-slate-800/90 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                        <div class="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200/70 dark:border-slate-700">
                             <div class="flex justify-between text-[10px] font-extrabold text-slate-600 dark:text-slate-300 mb-1">
                                 <span>លើ-ក្រោម (Y)</span>
                                 <span id="pngSlot${i}TopVal" class="font-mono text-indigo-600 dark:text-[#D4FF33]">10%</span>
@@ -6829,8 +6875,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                             <input type="range" id="pngSlot${i}Top" min="-15" max="85" step="1" oninput="liveUpdatePngTransform(${i})" class="w-full accent-indigo-600 cursor-pointer">
                         </div>
 
-                        <!-- 4. Rotation Angle Slider -->
-                        <div class="bg-white dark:bg-slate-800/90 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                        <div class="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200/70 dark:border-slate-700">
                             <div class="flex justify-between text-[10px] font-extrabold text-slate-600 dark:text-slate-300 mb-1">
                                 <span>បង្វិល (Rotate)</span>
                                 <span id="pngSlot${i}RotateVal" class="font-mono text-indigo-600 dark:text-[#D4FF33]">0°</span>
@@ -6884,16 +6929,9 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 document.getElementById(`pngSlot${i}Title`).value = cfg.title || '';
                 tempUploadedPngs[i] = cfg.image || '';
 
-                const previewImg = document.getElementById(`pngSlot${i}Preview`);
-                if (previewImg) {
-                    previewImg.src = cfg.image || '';
-                    previewImg.style.transform = `rotate(${cfg.rotate}deg)`;
-                }
-
                 const urlInput = document.getElementById(`pngSlot${i}Url`);
                 if (urlInput) urlInput.value = (cfg.image && cfg.image.startsWith('http')) ? cfg.image : '';
 
-                // Populate Size, Left, Top, Rotate sliders
                 document.getElementById(`pngSlot${i}Size`).value = cfg.size;
                 document.getElementById(`pngSlot${i}Left`).value = cfg.left;
                 document.getElementById(`pngSlot${i}Top`).value = cfg.top;
@@ -6904,6 +6942,8 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 document.getElementById(`pngSlot${i}TopVal`).textContent = `${cfg.top}%`;
                 document.getElementById(`pngSlot${i}RotateVal`).textContent = `${cfg.rotate}°`;
             }
+
+            updateLiveModalMiniStage(-1);
 
             const modal = document.getElementById('heroSettingsModal');
             modal?.classList.remove('hidden');
@@ -6940,11 +6980,9 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                     const pngDataUrl = canvas.toDataURL('image/png');
                     tempUploadedPngs[slotIdx] = pngDataUrl;
 
-                    const previewImg = document.getElementById(`pngSlot${slotIdx}Preview`);
-                    if (previewImg) previewImg.src = pngDataUrl;
-
                     const urlInput = document.getElementById(`pngSlot${slotIdx}Url`);
                     if (urlInput) urlInput.value = '';
+                    updateLiveModalMiniStage(slotIdx);
                 };
                 img.src = e.target.result;
             };
@@ -6955,8 +6993,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             const clean = (urlVal || '').trim();
             if (clean) {
                 tempUploadedPngs[slotIdx] = clean;
-                const previewImg = document.getElementById(`pngSlot${slotIdx}Preview`);
-                if (previewImg) previewImg.src = clean;
+                updateLiveModalMiniStage(slotIdx);
             }
         };
 
@@ -6977,6 +7014,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             hero4Items = updated4;
             save4HeroPngsLocal();
             build4FloatingPngStage();
+            if (isSeeThroughActive) window.toggleModalSeeThroughMode();
             window.closeHeroSettingsModal?.();
 
             try {
