@@ -6268,6 +6268,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const TITLE_STYLE_KEY = 'shshop_pro_hero_title_style_v2';
+        const TITLE_SCALE_KEY = 'shshop_pro_hero_title_scale_v1';
         const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'shshop-pro-app';
 
         function getSavedStyle() {
@@ -6277,46 +6278,103 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             return parseInt(localStyle || attrStyle || '1', 10);
         }
 
-        let currentTitleStyle = getSavedStyle();
-
-        window.setHeroTitleStyle = async function(styleNum, event) {
-            if (event) event.stopPropagation();
-            currentTitleStyle = Number(styleNum);
-
+        // Default scale is 125% (already larger and bolder than before)
+        function getSavedScale() {
             const heroH2 = document.querySelector('section h2');
-            if (heroH2) heroH2.setAttribute('data-hero-style', String(currentTitleStyle));
+            const attrScale = heroH2?.getAttribute('data-hero-scale');
+            const localScale = localStorage.getItem(TITLE_SCALE_KEY);
+            return parseInt(localScale || attrScale || '125', 10);
+        }
 
+        let currentTitleStyle = getSavedStyle();
+        let currentTitleScale = getSavedScale();
+        let cloudSyncTimer = null;
+
+        function syncAttributesAndLocal() {
+            const heroH2 = document.querySelector('section h2');
+            if (heroH2) {
+                heroH2.setAttribute('data-hero-style', String(currentTitleStyle));
+                heroH2.setAttribute('data-hero-scale', String(currentTitleScale));
+            }
             try {
                 localStorage.setItem(TITLE_STYLE_KEY, String(currentTitleStyle));
+                localStorage.setItem(TITLE_SCALE_KEY, String(currentTitleScale));
             } catch (e) {}
+        }
 
+        function saveToCloudDebounced() {
+            clearTimeout(cloudSyncTimer);
+            cloudSyncTimer = setTimeout(async () => {
+                try {
+                    const app = getApp();
+                    const db = getFirestore(app);
+                    await setDoc(
+                        doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'storeMeta'),
+                        {
+                            heroTitleStyle: currentTitleStyle,
+                            heroTitleScale: currentTitleScale
+                        },
+                        { merge: true }
+                    );
+                } catch (e) {}
+            }, 300);
+        }
+
+        window.setHeroTitleStyle = function(styleNum, event) {
+            if (event) event.stopPropagation();
+            currentTitleStyle = Number(styleNum);
+            syncAttributesAndLocal();
             renderCreativeHeroTitle();
-
-            try {
-                const app = getApp();
-                const db = getFirestore(app);
-                await setDoc(
-                    doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'storeMeta'),
-                    { heroTitleStyle: currentTitleStyle },
-                    { merge: true }
-                );
-            } catch (e) {}
+            saveToCloudDebounced();
         };
 
+        // Live-update title text size when dragging slider or clicking - / + buttons
+        window.setHeroTitleScale = function(scaleVal, event) {
+            if (event) event.stopPropagation();
+            currentTitleScale = Math.min(220, Math.max(70, Number(scaleVal) || 125));
+            syncAttributesAndLocal();
+
+            // Instantly scale all text elements inside the title without re-rendering the slider under the user's finger
+            const contentWrap = document.getElementById('heroTitleScaledContent');
+            if (contentWrap) {
+                contentWrap.style.setProperty('--title-scale', (currentTitleScale / 100).toFixed(2));
+            }
+            const lbl = document.getElementById('heroTitleScaleLabel');
+            if (lbl) lbl.textContent = `${currentTitleScale}%`;
+            const slider = document.getElementById('heroTitleScaleSlider');
+            if (slider && Number(slider.value) !== currentTitleScale) {
+                slider.value = currentTitleScale;
+            }
+
+            saveToCloudDebounced();
+        };
+
+        window.stepHeroTitleScale = function(delta, event) {
+            if (event) event.stopPropagation();
+            window.setHeroTitleScale(currentTitleScale + delta, event);
+        };
+
+        // Listen for Firebase Cloud updates so all customers see the exact style & size
         setTimeout(() => {
             try {
                 const app = getApp();
                 const db = getFirestore(app);
                 onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'storeMeta'), (snap) => {
-                    if (snap.exists() && snap.data().heroTitleStyle) {
-                        const cloudStyle = Number(snap.data().heroTitleStyle);
-                        if (cloudStyle >= 1 && cloudStyle <= 6 && cloudStyle !== currentTitleStyle) {
-                            currentTitleStyle = cloudStyle;
-                            localStorage.setItem(TITLE_STYLE_KEY, String(cloudStyle));
-                            const heroH2 = document.querySelector('section h2');
-                            if (heroH2) heroH2.setAttribute('data-hero-style', String(cloudStyle));
-                            renderCreativeHeroTitle();
-                        }
+                    if (!snap.exists()) return;
+                    const data = snap.data();
+                    let changed = false;
+
+                    if (data.heroTitleStyle && Number(data.heroTitleStyle) !== currentTitleStyle) {
+                        currentTitleStyle = Number(data.heroTitleStyle);
+                        changed = true;
+                    }
+                    if (data.heroTitleScale && Number(data.heroTitleScale) !== currentTitleScale) {
+                        currentTitleScale = Number(data.heroTitleScale);
+                        changed = true;
+                    }
+                    if (changed) {
+                        syncAttributesAndLocal();
+                        renderCreativeHeroTitle();
                     }
                 });
             } catch (e) {}
@@ -6326,21 +6384,52 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             const heroH2 = document.querySelector('section h2');
             if (!heroH2) return;
 
-            heroH2.setAttribute('data-hero-style', String(currentTitleStyle));
+            syncAttributesAndLocal();
 
             const labelEl = document.getElementById('langLabel');
             const isEn = labelEl && labelEl.textContent.trim() === 'ខ្មែរ';
             const isOwnerUnlocked = !document.getElementById('adminControlsGroup')?.classList.contains('hidden');
+            const sRatio = (currentTitleScale / 100).toFixed(2);
 
-            // 6 Style Switcher Buttons (Only visible in Owner Mode)
+            // Owner Mode Toolbar: 6 Style Buttons + Live Size Customizer (- / Slider / + / Reset)
             const adminStyleSwitcherHtml = isOwnerUnlocked ? `
-                <div class="mb-3 inline-flex flex-wrap items-center gap-1.5 p-1.5 rounded-full bg-white dark:bg-slate-900 border border-indigo-200 dark:border-slate-700 shadow-sm text-[11px] font-extrabold" onclick="event.stopPropagation()">
-                    <span class="px-2 text-slate-500 dark:text-slate-400">${isEn ? 'Style:' : 'រើសម៉ូតអក្សរ៖'}</span>
-                    ${[1, 2, 3, 4, 5, 6].map(n => `
-                        <button type="button" onclick="setHeroTitleStyle(${n}, event)" class="px-2.5 py-0.5 rounded-full transition cursor-pointer ${currentTitleStyle === n ? 'bg-indigo-600 text-white shadow-xs' : 'hover:bg-indigo-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'}">
-                            #${n}
+                <div class="mb-3 p-2.5 rounded-2xl bg-white/95 dark:bg-slate-900/95 border border-indigo-200 dark:border-slate-700 shadow-md space-y-2 text-[11px] font-extrabold max-w-xl" onclick="event.stopPropagation()">
+                    <!-- Row 1: 6 Style Option Buttons -->
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        <span class="px-1.5 text-slate-500 dark:text-slate-400">${isEn ? 'Style:' : 'ម៉ូតអក្សរ៖'}</span>
+                        ${[1, 2, 3, 4, 5, 6].map(n => `
+                            <button type="button" onclick="setHeroTitleStyle(${n}, event)" class="px-2.5 py-1 rounded-full transition cursor-pointer ${currentTitleStyle === n ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'}">
+                                #${n}
+                            </button>
+                        `).join('')}
+                    </div>
+
+                    <!-- Row 2: Live Font Size Customizer -->
+                    <div class="flex flex-wrap items-center gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800">
+                        <span class="px-1.5 text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                            <i class="ph-bold ph-text-aa text-indigo-600 dark:text-[#D4FF33] text-sm"></i>
+                            <span>${isEn ? 'Size:' : 'ទំហំអក្សរ៖'}</span>
+                        </span>
+
+                        <button type="button" onclick="stepHeroTitleScale(-10, event)" class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-100 dark:hover:bg-slate-700 text-slate-800 dark:text-white flex items-center justify-center font-black cursor-pointer" title="បន្ថយទំហំ">-</button>
+
+                        <input id="heroTitleScaleSlider"
+                               type="range"
+                               min="70"
+                               max="220"
+                               step="5"
+                               value="${currentTitleScale}"
+                               oninput="setHeroTitleScale(this.value, event)"
+                               class="w-28 sm:w-40 accent-indigo-600 cursor-pointer">
+
+                        <button type="button" onclick="stepHeroTitleScale(10, event)" class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-100 dark:hover:bg-slate-700 text-slate-800 dark:text-white flex items-center justify-center font-black cursor-pointer" title="បន្ថែមទំហំ">+</button>
+
+                        <span id="heroTitleScaleLabel" class="min-w-[44px] text-center px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-[#D4FF33] font-mono text-xs">${currentTitleScale}%</span>
+
+                        <button type="button" onclick="setHeroTitleScale(125, event)" class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] cursor-pointer">
+                            ${isEn ? 'Reset' : 'ដើមវិញ'}
                         </button>
-                    `).join('')}
+                    </div>
                 </div>
             ` : '';
 
@@ -6351,108 +6440,112 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             const line1 = isEn ? "Modern Mobile Shop" : "ហាងលក់ទូរស័ព្ទដៃទំនើប";
             const line2 = isEn ? "& All Kinds of Original Accessories" : "និងគ្រឿងបន្លាស់គ្រប់ប្រភេទ";
 
+            // Dynamic responsive font-size helpers powered by --title-scale
+            const mainFont = "font-size: calc(clamp(1.6rem, 3.6vw, 2.65rem) * var(--title-scale, 1.25));";
+            const brandFont = "font-size: calc(clamp(1.95rem, 4.4vw, 3.25rem) * var(--title-scale, 1.25));";
+            const subFont  = "font-size: calc(clamp(1.1rem, 2.3vw, 1.65rem) * var(--title-scale, 1.25));";
+            const badgeFont = "font-size: calc(clamp(0.75rem, 1.2vw, 0.9rem) * var(--title-scale, 1.25));";
+
             let styleMarkup = '';
 
             if (currentTitleStyle === 1) {
-                // STYLE #1: Original Apple Luxury Editorial (Left Bar + Skewed Marker Highlight)
                 styleMarkup = `
-                    <div class="relative pl-4 sm:pl-5 border-l-4 border-indigo-600 dark:border-[#D4FF33] space-y-1.5 overflow-visible">
-                        <div class="text-2xl sm:text-4xl xl:text-[40px] font-black text-[#12101B] dark:text-white leading-[1.7] overflow-visible">
+                    <div class="relative pl-4 sm:pl-5 border-l-4 border-indigo-600 dark:border-[#D4FF33] space-y-2 overflow-visible">
+                        <div style="${mainFont}" class="font-black text-[#12101B] dark:text-white leading-[1.7] overflow-visible">
                             <span class="kh-marker-highlight px-1">${shopName}</span>
                             <span> ${line1}</span>
                         </div>
-                        <div class="text-lg sm:text-2xl xl:text-[26px] font-extrabold text-indigo-600 dark:text-indigo-300 leading-[1.7] overflow-visible">
+                        <div style="${subFont}" class="font-extrabold text-indigo-600 dark:text-indigo-300 leading-[1.7] overflow-visible">
                             ${line2}
                         </div>
                     </div>
                 `;
             } else if (currentTitleStyle === 2) {
-                // STYLE #2: Original Bold 3D Brand Typography
                 styleMarkup = `
-                    <div class="space-y-1.5 overflow-visible">
+                    <div class="space-y-2 overflow-visible">
                         <div class="flex flex-wrap items-baseline gap-2.5 overflow-visible">
-                            <span class="text-3xl sm:text-5xl xl:text-[50px] font-black kh-3d-brand leading-[1.65] py-1">${shopName}</span>
-                            <span class="text-xl sm:text-3xl xl:text-[34px] font-black text-slate-900 dark:text-white leading-[1.65] py-1">${line1}</span>
+                            <span style="${brandFont}" class="font-black kh-3d-brand leading-[1.65] py-1">${shopName}</span>
+                            <span style="${mainFont}" class="font-black text-slate-900 dark:text-white leading-[1.65] py-1">${line1}</span>
                         </div>
-                        <div class="flex items-center gap-2 text-base sm:text-xl xl:text-2xl font-bold text-purple-700 dark:text-purple-300 leading-[1.65] py-0.5 overflow-visible">
-                            <span class="w-6 h-[3px] rounded-full bg-indigo-500 shrink-0"></span>
+                        <div style="${subFont}" class="flex items-center gap-2 font-bold text-purple-700 dark:text-purple-300 leading-[1.65] py-0.5 overflow-visible">
+                            <span class="w-7 h-[3.5px] rounded-full bg-indigo-500 shrink-0"></span>
                             <span>${line2}</span>
                         </div>
                     </div>
                 `;
             } else if (currentTitleStyle === 3) {
-                // STYLE #3: Original Modern Glass Bento Card
                 styleMarkup = `
                     <div class="p-4 sm:p-5 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-white dark:border-slate-800 shadow-soft space-y-2 overflow-visible">
-                        <div class="flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest text-indigo-600 dark:text-[#D4FF33]">
-                            <i class="ph-fill ph-crown-simple text-base"></i>
+                        <div style="${badgeFont}" class="flex items-center gap-2 font-extrabold uppercase tracking-widest text-indigo-600 dark:text-[#D4FF33]">
+                            <i class="ph-fill ph-crown-simple"></i>
                             <span>OFFICIAL SHOWROOM • ${shopName}</span>
                         </div>
-                        <div class="text-xl sm:text-3xl xl:text-[34px] font-black text-[#12101B] dark:text-white leading-[1.7] overflow-visible">
+                        <div style="${mainFont}" class="font-black text-[#12101B] dark:text-white leading-[1.7] overflow-visible">
                             ${shopName} ${line1}
                         </div>
-                        <div class="text-sm sm:text-lg font-extrabold text-indigo-600 dark:text-indigo-300 leading-[1.7] overflow-visible">
+                        <div style="${subFont}" class="font-extrabold text-indigo-600 dark:text-indigo-300 leading-[1.7] overflow-visible">
                             ${line2}
                         </div>
                     </div>
                 `;
             } else if (currentTitleStyle === 4) {
-                // STYLE #4: Original Neon Cyber Underline
                 styleMarkup = `
-                    <div class="space-y-2 overflow-visible">
-                        <div class="text-2xl sm:text-4xl xl:text-[40px] font-black text-[#12101B] dark:text-white leading-[1.72] py-1 overflow-visible">
+                    <div class="space-y-2.5 overflow-visible">
+                        <div style="${mainFont}" class="font-black text-[#12101B] dark:text-white leading-[1.72] py-1 overflow-visible">
                             <span class="text-indigo-600 dark:text-[#D4FF33]">${shopName}</span> ${line1}
                         </div>
-                        <div class="kh-neon-bar w-28 sm:w-40"></div>
-                        <div class="text-base sm:text-2xl font-extrabold text-slate-700 dark:text-slate-200 leading-[1.7] pt-0.5 overflow-visible">
+                        <div class="kh-neon-bar w-32 sm:w-48"></div>
+                        <div style="${subFont}" class="font-extrabold text-slate-700 dark:text-slate-200 leading-[1.7] pt-0.5 overflow-visible">
                             ${line2}
                         </div>
                     </div>
                 `;
             } else if (currentTitleStyle === 5) {
-                // STYLE #5 (NEW): Floating 3D Pill Badge + Animated Shimmer Text + Warranty Pill
                 styleMarkup = `
                     <div class="space-y-2.5 overflow-visible">
                         <div class="flex flex-wrap items-center gap-2.5 overflow-visible">
-                            <span class="seyha-highlight-pill text-xl sm:text-3xl xl:text-[36px] font-black leading-[1.6]">
-                                <i class="ph-fill ph-sparkle text-sm sm:text-lg"></i>
+                            <span style="${mainFont}" class="seyha-highlight-pill font-black leading-[1.6]">
+                                <i class="ph-fill ph-sparkle text-[0.75em]"></i>
                                 <span>${shopName}</span>
                             </span>
-                            <span class="text-2xl sm:text-4xl xl:text-[40px] font-black creative-title-gradient leading-[1.7] py-1">
+                            <span style="${mainFont}" class="font-black creative-title-gradient leading-[1.7] py-1">
                                 ${line1}
                             </span>
                         </div>
                         <div class="pt-0.5">
-                            <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-indigo-200/80 dark:border-indigo-500/30 text-sm sm:text-lg xl:text-xl font-extrabold text-indigo-700 dark:text-[#D4FF33] shadow-soft leading-[1.65]">
-                                <i class="ph-fill ph-seal-check text-indigo-600 dark:text-[#D4FF33] text-base sm:text-xl"></i>
+                            <span style="${subFont}" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-indigo-200/80 dark:border-indigo-500/30 font-extrabold text-indigo-700 dark:text-[#D4FF33] shadow-soft leading-[1.65]">
+                                <i class="ph-fill ph-seal-check text-indigo-600 dark:text-[#D4FF33]"></i>
                                 <span>${line2}</span>
                             </span>
                         </div>
                     </div>
                 `;
             } else {
-                // STYLE #6 (NEW): Royal Double-Border Emblem & Gradient Ribbon
                 styleMarkup = `
-                    <div class="space-y-2 overflow-visible">
-                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-lg kh-Royal-badge text-xs sm:text-sm font-extrabold uppercase tracking-wider text-indigo-700 dark:text-[#D4FF33]">
+                    <div class="space-y-2.5 overflow-visible">
+                        <div style="${badgeFont}" class="inline-flex items-center gap-2 px-3 py-1 rounded-lg kh-Royal-badge font-extrabold uppercase tracking-wider text-indigo-700 dark:text-[#D4FF33]">
                             <i class="ph-fill ph-device-mobile-camera"></i>
                             <span>${shopName} • SHSHOP PRO CAMBODIA</span>
                         </div>
-                        <div class="text-2xl sm:text-4xl xl:text-[40px] font-black text-[#12101B] dark:text-white leading-[1.72] py-0.5 overflow-visible">
+                        <div style="${mainFont}" class="font-black text-[#12101B] dark:text-white leading-[1.72] py-0.5 overflow-visible">
                             <span class="underline decoration-[#D4FF33] dark:decoration-indigo-500 decoration-4 underline-offset-8">${shopName}</span>
                             <span> ${line1}</span>
                         </div>
-                        <div class="flex items-center gap-2 pt-1 text-base sm:text-2xl font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 dark:from-[#D4FF33] dark:via-indigo-300 dark:to-purple-300 bg-clip-text text-transparent leading-[1.7] overflow-visible">
-                            <i class="ph-bold ph-ShootingStar text-indigo-600 dark:text-[#D4FF33] text-lg sm:text-2xl shrink-0"></i>
+                        <div style="${subFont}" class="flex items-center gap-2 pt-1 font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 dark:from-[#D4FF33] dark:via-indigo-300 dark:to-purple-300 bg-clip-text text-transparent leading-[1.7] overflow-visible">
+                            <i class="ph-bold ph-shooting-star text-indigo-600 dark:text-[#D4FF33] shrink-0"></i>
                             <span>${line2}</span>
                         </div>
                     </div>
                 `;
             }
 
-            heroH2.innerHTML = adminStyleSwitcherHtml + styleMarkup;
+            heroH2.innerHTML = `
+                ${adminStyleSwitcherHtml}
+                <div id="heroTitleScaledContent" style="--title-scale: ${sRatio};" class="overflow-visible">
+                    ${styleMarkup}
+                </div>
+            `;
 
-            // Keep small header logo intact
             const topLogoBox = document.querySelector('header > div > div:first-child > div:first-child');
             if (topLogoBox && !topLogoBox.dataset.seyhaUpgraded) {
                 topLogoBox.dataset.seyhaUpgraded = "true";
@@ -6463,7 +6556,11 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
 
         window.addEventListener('DOMContentLoaded', () => setTimeout(renderCreativeHeroTitle, 90));
         setTimeout(renderCreativeHeroTitle, 140);
-        document.addEventListener('click', () => setTimeout(renderCreativeHeroTitle, 70));
+        document.addEventListener('click', (e) => {
+            // Avoid re-rendering while dragging the size slider
+            if (e.target && e.target.id === 'heroTitleScaleSlider') return;
+            setTimeout(renderCreativeHeroTitle, 70);
+        });
     </script>
 	<!-- 4 Frameless Floating PNG Hero Gadgets (Proportional Auto-Fit for Small Phones + PC/Mobile Customizer) -->
     <style>
