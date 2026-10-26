@@ -3608,19 +3608,19 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             const rawKhqrString = bank === 'ABA' ? paymentQrConfig.abaKhqrString : paymentQrConfig.acledaKhqrString;
             const dynamicPayload = buildDynamicKHQR(rawKhqrString, totalUSD);
 
-            if (bank === 'ABA') {
-             headerEl.className = "px-5 py-4 bg-[#E1232E] text-white flex items-center justify-between";
-             titleEl.textContent = "ABA KHQR Payment";
-             tabABA.className = "py-2 rounded-xl text-xs font-extrabold transition bg-[#E1232E] text-white shadow-2xs";
-             tabACLEDA.className = "py-2 rounded-xl text-xs font-extrabold transition text-slate-600 dark:text-slate-300";
-             accBox.textContent = paymentQrConfig.abaAccountName || "SHSHOP PRO • ABA KHQR";
-         } else {
-             headerEl.className = "px-5 py-4 bg-[#E1232E] text-white flex items-center justify-between";
-             titleEl.textContent = "ACLEDA KHQR Payment";
-             tabACLEDA.className = "py-2 rounded-xl text-xs font-extrabold transition bg-[#1B365D] text-white shadow-2xs";
-             tabABA.className = "py-2 rounded-xl text-xs font-extrabold transition text-slate-600 dark:text-slate-300";
-             accBox.textContent = paymentQrConfig.acledaAccountName || "SHSHOP PRO • ACLEDA KHQR";
-         }
+           if (bank === 'ABA') {
+                headerEl.className = "px-5 py-4 bg-[#E1232E] text-white flex items-center justify-between";
+                titleEl.textContent = "ABA KHQR Payment";
+                tabABA.className = "py-2 rounded-xl text-xs font-extrabold transition bg-[#E1232E] text-white shadow-2xs";
+                tabACLEDA.className = "py-2 rounded-xl text-xs font-extrabold transition text-slate-600 dark:text-slate-300";
+                accBox.textContent = paymentQrConfig.abaAccountName || "SHSHOP PRO • ABA KHQR";
+            } else {
+                headerEl.className = "px-5 py-4 bg-[#1B365D] text-white flex items-center justify-between";
+                titleEl.textContent = "ACLEDA KHQR Payment";
+                tabACLEDA.className = "py-2 rounded-xl text-xs font-extrabold transition bg-[#1B365D] text-white shadow-2xs";
+                tabABA.className = "py-2 rounded-xl text-xs font-extrabold transition text-slate-600 dark:text-slate-300";
+                accBox.textContent = paymentQrConfig.acledaAccountName || "SHSHOP PRO • ACLEDA KHQR";
+            }
 
             // Render Dynamic KHQR if valid 000201 string exists; otherwise show static image
             if (dynamicPayload && typeof QRCode !== 'undefined' && dynamicCanvas) {
@@ -3631,13 +3631,13 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 dynamicBadge?.classList.remove('hidden');
 
                 new QRCode(dynamicCanvas, {
-                 text: dynamicPayload,
-                 width: 210,
-                 height: 210,
-                 colorDark: "#000000",
-                 colorLight: "#ffffff",
-                 correctLevel: QRCode.CorrectLevel.M
-             });
+                    text: dynamicPayload,
+                    width: 210,
+                    height: 210,
+                    colorDark: bank === 'ABA' ? "#000000" : "#1B365D",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.M
+                });
             } else {
                 if (dynamicCanvas) {
                     dynamicCanvas.classList.add('hidden');
@@ -5335,8 +5335,10 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             const titleEl = document.getElementById('customerQrTitle');
             const isAcleda = titleEl && titleEl.textContent.includes('ACLEDA');
             const bankName = isAcleda ? 'ACLEDA' : 'ABA';
-            // ប្រើពណ៌ក្រហមផ្លូវការរបស់ KHQR (#E1232E) សម្រាប់ក្បាលខាងលើនៃរូបភាពទាញយក
-            const khqrRed = '#E1232E';
+            // ABA uses KHQR Red (#E1232E), ACLEDA keeps ACLEDA Navy Blue (#1B365D)
+            const headerColor = isAcleda ? '#1B365D' : '#E1232E';
+            const borderColor = isAcleda ? '#CBD5E1' : '#FECDD3';
+            const priceColor  = isAcleda ? '#0F172A' : '#E1232E';
 
             const usdText = document.getElementById('qrPopupTotalUSD')?.textContent || '$0.00';
             const khrText = document.getElementById('qrPopupTotalKHR')?.textContent || '0 ៛';
@@ -5366,26 +5368,26 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             exportCanvas.height = 780;
             const ctx = exportCanvas.getContext('2d');
 
-            // 1. ផ្ទៃខាងក្រោយពណ៌ស
+            // 1. White Background
             ctx.fillStyle = '#FFFFFF';
             ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
 
-            // 2. ក្បាលខាងលើពណ៌ក្រហមផ្លូវការរបស់ KHQR (#E1232E)
-            ctx.fillStyle = khqrRed;
+            // 2. Top Header (Red for ABA, Navy Blue for ACLEDA)
+            ctx.fillStyle = headerColor;
             ctx.fillRect(0, 0, exportCanvas.width, 115);
 
             ctx.fillStyle = '#FFFFFF';
             ctx.textAlign = 'center';
-            ctx.font = '900 34px "Plus Jakarta Sans", sans-serif';
-            ctx.fillText('KHQR', exportCanvas.width / 2, 55);
+            ctx.font = '900 32px "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(isAcleda ? 'ACLEDA KHQR PAYMENT' : 'KHQR', exportCanvas.width / 2, 55);
 
             ctx.font = '600 17px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
             ctx.fillText(`${bankName} BANK • ស្កេនដើម្បីទូទាត់ប្រាក់`, exportCanvas.width / 2, 90);
 
-            // 3. ប្រអប់បង្ហាញឈ្មោះគណនី និងទឹកប្រាក់ត្រូវទូទាត់ (ដូចទម្រង់កាត KHQR ពិត)
+            // 3. Account & Amount Box
             ctx.fillStyle = '#F8FAFC';
             ctx.fillRect(50, 138, 500, 102);
-            ctx.strokeStyle = '#FECDD3';
+            ctx.strokeStyle = borderColor;
             ctx.lineWidth = 2;
             ctx.strokeRect(50, 138, 500, 102);
 
@@ -5393,7 +5395,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             ctx.font = 'bold 19px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
             ctx.fillText(accName.trim(), exportCanvas.width / 2, 172);
 
-            ctx.fillStyle = '#E1232E';
+            ctx.fillStyle = priceColor;
             ctx.font = '900 30px "JetBrains Mono", monospace';
             ctx.fillText(`${usdText} (${khrText})`, exportCanvas.width / 2, 218);
 
