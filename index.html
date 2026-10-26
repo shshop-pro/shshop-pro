@@ -6528,7 +6528,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         }
     </style>
 
-    <script type="module">
+   <script type="module">
         import { getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
@@ -6539,7 +6539,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         const STAGE_BASE_W = 540;
         const STAGE_BASE_H = 450;
 
-        // Default 4 Transparent PNGs with well-spaced PC & Mobile coordinates
         const DEFAULT_4_HERO_PNGS = [
             {
                 productId: "prod-1",
@@ -6572,9 +6571,10 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         ];
 
         let hero4Items = JSON.parse(JSON.stringify(DEFAULT_4_HERO_PNGS));
-        let useCustomMobileCoords = false; // By default, auto-scales PC layout proportionally so you only edit once!
-        let activeEditDevice = 'pc'; // 'pc' or 'mobile'
+        let useCustomMobileCoords = false;
+        let activeEditDevice = 'pc';
         let tempUploadedPngs = ["", "", "", ""];
+        let isSeeThroughActive = false;
 
         function normalizeItemWithDefaults(item, idx) {
             const def = DEFAULT_4_HERO_PNGS[idx] || DEFAULT_4_HERO_PNGS[0];
@@ -6636,7 +6636,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             }
         }
 
-        // Automatically scale the 540x450 virtual stage to fit ANY screen width (iPhone X 340px up to Desktop)
         function updateStageAutoScale() {
             const outer = document.getElementById('nexora4PngOuter');
             const inner = document.getElementById('nexora4PngStage');
@@ -6660,7 +6659,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             return { size: cfg.size, left: cfg.left, top: cfg.top, rotate: cfg.rotate };
         }
 
-        function build4FloatingPngStage() {
+        function build4FloatingPngStage(activeHighlightIdx = -1) {
             const oldCard1 = document.getElementById('heroCard1');
             const oldCard2 = document.getElementById('heroCard2');
             const oldCard3 = document.getElementById('heroCard3');
@@ -6672,7 +6671,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             if (oldCard2) oldCard2.style.display = 'none';
             if (oldCard3) oldCard3.style.display = 'none';
 
-            // Adjust parent min-height on small mobile screens so there is no extra empty gap
             showcaseParent.classList.remove('min-h-[380px]');
             showcaseParent.classList.add('min-h-[290px]', 'sm:min-h-[450px]');
 
@@ -6698,16 +6696,16 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 <div id="nexora4PngStage"
                      style="width: ${STAGE_BASE_W}px; height: ${STAGE_BASE_H}px; transform-origin: center center;"
                      class="relative shrink-0 select-none">
-                    <!-- Soft Ground Shadow -->
                     <div class="absolute bottom-5 left-1/4 w-72 h-6 bg-slate-900/20 dark:bg-black/50 rounded-full blur-xl pointer-events-none"></div>
                     ${hero4Items.map((item, idx) => {
                         const cfg = normalizeItemWithDefaults(item, idx);
                         const coords = getActiveCoords(cfg);
+                        const isHighlighted = activeHighlightIdx === idx;
                         return `
                             <div id="heroPngFloatingSlot-${idx}"
                                  onclick="triggerHeroPngOrder(${idx})"
                                  style="left: ${coords.left}%; top: ${coords.top}%; width: ${coords.size}px; z-index: ${zIndexes[idx]};"
-                                 class="nexora-png-wrapper nexora-bob-${idx} absolute cursor-pointer flex flex-col items-center group"
+                                 class="nexora-png-wrapper nexora-bob-${idx} absolute cursor-pointer flex flex-col items-center group ${isHighlighted ? 'ring-4 ring-[#D4FF33] rounded-3xl bg-indigo-600/15 p-1' : ''}"
                                  title="ចុចដើម្បីកម្មង់ទិញ ${cfg.title}">
                                 <img id="heroPngFloatingImg-${idx}"
                                      src="${cfg.image}"
@@ -6747,11 +6745,38 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             }
         };
 
-        // Switch between Editing PC Layout vs Phone Layout inside the Modal
-        window.switchHeroEditDevice = function(deviceMode) {
-            // Save current slider values into hero4Items before switching tabs
-            saveCurrentSlidersToMemory();
+        // RESTORED: Toggle "See-Through Live View Mode" so you can watch the real page while customizing!
+        window.toggleModalSeeThroughMode = function(forceState) {
+            isSeeThroughActive = forceState !== undefined ? forceState : !isSeeThroughActive;
+            const modalBackdrop = document.getElementById('heroSettingsModal');
+            const modalBox = modalBackdrop?.firstElementChild;
+            const btnText = document.getElementById('seeThroughBtnText');
+            const miniPreviewWrapper = document.getElementById('livePreviewOuterFrame');
 
+            if (modalBackdrop && modalBox) {
+                if (isSeeThroughActive) {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    // Dock to bottom on phone, or right side on PC, with transparent background so real Hero is 100% visible!
+                    modalBackdrop.className = "fixed inset-0 z-50 flex items-end sm:items-center justify-end p-0 sm:p-4 bg-transparent pointer-events-none overflow-y-auto";
+                    modalBox.className = "modal-animate bg-white/80 dark:bg-[#0f111a]/85 backdrop-blur-md border-t-2 sm:border-2 border-indigo-500 rounded-t-3xl sm:rounded-3xl max-w-md w-full max-h-[52dvh] sm:max-h-[88dvh] flex flex-col shadow-floating overflow-hidden mt-auto sm:my-auto pointer-events-auto";
+                    if (btnText) btnText.textContent = "បិទមើលធ្លុះ (Full Modal)";
+                    // Collapse the mini preview on mobile when in See-Through mode so you have more room to see the real page above
+                    if (miniPreviewWrapper && isMobileViewport()) {
+                        miniPreviewWrapper.classList.add('hidden');
+                    }
+                } else {
+                    modalBackdrop.className = "fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/65 dark:bg-black/80 backdrop-blur-sm overflow-y-auto";
+                    modalBox.className = "modal-animate bg-white dark:bg-[#0f111a] border-t sm:border border-slate-200 dark:border-slate-800 rounded-t-3xl sm:rounded-3xl max-w-2xl w-full max-h-[92dvh] flex flex-col shadow-floating overflow-hidden my-auto";
+                    if (btnText) btnText.textContent = "មើលធ្លុះលើវេបសាយផ្ទាល់ (See-Through)";
+                    if (miniPreviewWrapper) {
+                        miniPreviewWrapper.classList.remove('hidden');
+                    }
+                }
+            }
+        };
+
+        window.switchHeroEditDevice = function(deviceMode) {
+            saveCurrentSlidersToMemory();
             activeEditDevice = deviceMode;
             if (deviceMode === 'mobile') {
                 useCustomMobileCoords = true;
@@ -6763,23 +6788,21 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             const stageMirror = document.getElementById('liveHeroMiniStageInner');
 
             if (deviceMode === 'pc') {
-                if (btnPc) btnPc.className = "px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs cursor-pointer";
-                if (btnMob) btnMob.className = "px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer";
+                if (btnPc) btnPc.className = "px-2.5 py-1.5 rounded-xl bg-indigo-600 text-white text-[11px] font-extrabold flex items-center gap-1 shadow-xs cursor-pointer";
+                if (btnMob) btnMob.className = "px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer";
                 if (outerFrame) outerFrame.style.maxWidth = "100%";
-                if (stageMirror) stageMirror.style.transform = "scale(0.5)";
+                if (stageMirror) stageMirror.style.transform = "scale(0.46)";
             } else {
-                if (btnMob) btnMob.className = "px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs cursor-pointer";
-                if (btnPc) btnPc.className = "px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer";
-                // Narrow the preview frame to look like an iPhone X screen (340px wide)
-                if (outerFrame) outerFrame.style.maxWidth = "270px";
-                if (stageMirror) stageMirror.style.transform = "scale(0.44)";
+                if (btnMob) btnMob.className = "px-2.5 py-1.5 rounded-xl bg-indigo-600 text-white text-[11px] font-extrabold flex items-center gap-1 shadow-xs cursor-pointer";
+                if (btnPc) btnPc.className = "px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer";
+                if (outerFrame) outerFrame.style.maxWidth = "260px";
+                if (stageMirror) stageMirror.style.transform = "scale(0.42)";
             }
 
             populateSlidersForActiveDevice();
             updateLiveModalMiniStage(-1);
         };
 
-        // Copy PC Layout directly to Phone Layout with 1 click
         window.syncMobileFromPcLayout = function() {
             saveCurrentSlidersToMemory();
             for (let i = 0; i < 4; i++) {
@@ -6861,7 +6884,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
 
                 return `
                     <div style="left: ${leftVal}%; top: ${topVal}%; width: ${sizeVal}px; z-index: ${zIndexes[idx]};"
-                         class="absolute flex flex-col items-center pointer-events-none transition-all duration-75 ${isHighlighted ? 'ring-2 ring-[#D4FF33] rounded-2xl bg-indigo-500/10 p-1' : ''}">
+                         class="absolute flex flex-col items-center pointer-events-none transition-all duration-75 ${isHighlighted ? 'ring-4 ring-[#D4FF33] rounded-2xl bg-indigo-500/15 p-1' : ''}">
                         <span class="px-1.5 py-0.2 rounded-full bg-indigo-600 text-white text-[10px] font-extrabold mb-0.5 shadow">#${idx + 1}</span>
                         <img src="${imgSrc}" style="transform: rotate(${rotVal}deg);" class="w-full h-auto object-contain drop-shadow-xl">
                     </div>
@@ -6881,8 +6904,10 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             document.getElementById(`pngSlot${idx}RotateVal`).textContent = `${rotVal}°`;
 
             saveCurrentSlidersToMemory();
+            // 1. Update Sticky Mini-Stage inside the modal
             updateLiveModalMiniStage(idx);
-            build4FloatingPngStage();
+            // 2. Update Real Website Hero Stage behind the modal with yellow highlight ring on active item
+            build4FloatingPngStage(idx);
         };
 
         window.resetSinglePngTransform = function(idx) {
@@ -6896,12 +6921,12 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
 
         function upgradeAdminHeroModalTo4PngSlots() {
             const formEl = document.querySelector('#heroSettingsModal form');
-            if (!formEl || formEl.dataset.upgradedResponsive4Png === "true") return;
-            formEl.dataset.upgradedResponsive4Png = "true";
+            if (!formEl || formEl.dataset.upgradedFullLiveView === "true") return;
+            formEl.dataset.upgradedFullLiveView = "true";
 
             const modalTitle = document.querySelector('#heroSettingsModal h3');
             if (modalTitle) {
-                modalTitle.textContent = "កំណត់រូប PNG ទាំង 4 (គាំទ្រទាំងកុំព្យូទ័រ 💻 និងទូរស័ព្ទ 📱)";
+                modalTitle.textContent = "កំណត់រូប PNG ទាំង 4 (Live Preview + មើលធ្លុះលើវេបសាយផ្ទាល់)";
             }
 
             const slotLabels = [
@@ -6911,28 +6936,33 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 { title: "4. រូប PNG ទី 4 (Bottom-Right)", badge: "bg-amber-600" }
             ];
 
+            // Sticky Header with: [PC Tab] [Phone Tab] [Auto-Fit Button] AND [See-Through Live View Button]!
             const livePreviewBoxHtml = `
-                <div class="sticky -top-5 z-30 bg-white/95 dark:bg-[#0f111a]/95 backdrop-blur-md pt-2 pb-3 border-b border-slate-200 dark:border-slate-800 -mx-2 px-2">
-                    <!-- Device Switcher Tabs: PC vs Phone -->
-                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-                        <div class="inline-flex items-center gap-1.5">
-                            <button type="button" id="editTabPC" onclick="switchHeroEditDevice('pc')" class="px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs cursor-pointer">
-                                <i class="ph-bold ph-desktop"></i> កែសម្រាប់កុំព្យូទ័រ (PC)
+                <div class="sticky -top-5 z-30 bg-white/95 dark:bg-[#0f111a]/95 backdrop-blur-md pt-2 pb-2.5 border-b border-slate-200 dark:border-slate-800 -mx-2 px-2 space-y-2">
+                    <div class="flex flex-wrap items-center justify-between gap-1.5">
+                        <div class="inline-flex items-center gap-1">
+                            <button type="button" id="editTabPC" onclick="switchHeroEditDevice('pc')" class="px-2.5 py-1.5 rounded-xl bg-indigo-600 text-white text-[11px] font-extrabold flex items-center gap-1 shadow-xs cursor-pointer">
+                                <i class="ph-bold ph-desktop"></i> PC
                             </button>
-                            <button type="button" id="editTabMobile" onclick="switchHeroEditDevice('mobile')" class="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer">
-                                <i class="ph-bold ph-device-mobile"></i> កែសម្រាប់ទូរស័ព្ទ (Phone)
+                            <button type="button" id="editTabMobile" onclick="switchHeroEditDevice('mobile')" class="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer">
+                                <i class="ph-bold ph-device-mobile"></i> Phone
+                            </button>
+                            <button type="button" onclick="syncMobileFromPcLayout()" class="px-2 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 text-[10px] font-extrabold flex items-center gap-1 cursor-pointer transition" title="ឱ្យទូរស័ព្ទរួមទំហំតាមកុំព្យូទ័រស្វ័យប្រវត្តិ">
+                                <i class="ph-bold ph-magic-wand"></i> Auto-Fit
                             </button>
                         </div>
 
-                        <button type="button" onclick="syncMobileFromPcLayout()" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 text-[11px] font-extrabold flex items-center gap-1 cursor-pointer transition" title="ឱ្យទូរស័ព្ទរួមទំហំតាមកុំព្យូទ័រស្វ័យប្រវត្តិ">
-                            <i class="ph-bold ph-magic-wand"></i> ឱ្យទូរស័ព្ទរួមតាម PC ស្វ័យប្រវត្តិ
+                        <!-- RESTORED SEE-THROUGH LIVE VIEW BUTTON -->
+                        <button type="button" onclick="toggleModalSeeThroughMode()" class="px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-800 dark:text-[#D4FF33] border border-amber-500/40 text-[11px] font-extrabold flex items-center gap-1 cursor-pointer transition">
+                            <i class="ph-bold ph-eye"></i>
+                            <span id="seeThroughBtnText">មើលធ្លុះលើវេបសាយផ្ទាល់ (See-Through)</span>
                         </button>
                     </div>
 
-                    <!-- Scaled Live Mirror of the 540x450 Coordinate Stage -->
-                    <div id="livePreviewOuterFrame" class="mx-auto transition-all duration-300 relative w-full h-56 rounded-2xl bg-gradient-to-br from-[#F3F1FF] via-[#FAF9FF] to-[#EAE8F8] dark:from-[#0E0C18] dark:to-[#181528] border-2 border-indigo-500/30 overflow-hidden flex items-center justify-center shadow-inner">
-                        <div class="w-40 h-40 rounded-full bg-indigo-400/25 dark:bg-indigo-600/30 blur-xs absolute pointer-events-none"></div>
-                        <div id="liveHeroMiniStageInner" class="relative w-[540px] h-[450px] shrink-0 transition-transform duration-300" style="transform: scale(0.5); transform-origin: center center;"></div>
+                    <!-- Sticky Mini-Stage Live Preview Box -->
+                    <div id="livePreviewOuterFrame" class="mx-auto transition-all duration-300 relative w-full h-48 sm:h-52 rounded-2xl bg-gradient-to-br from-[#F3F1FF] via-[#FAF9FF] to-[#EAE8F8] dark:from-[#0E0C18] dark:to-[#181528] border-2 border-indigo-500/30 overflow-hidden flex items-center justify-center shadow-inner">
+                        <div class="w-36 h-36 rounded-full bg-indigo-400/25 dark:bg-indigo-600/30 blur-xs absolute pointer-events-none"></div>
+                        <div id="liveHeroMiniStageInner" class="relative w-[540px] h-[450px] shrink-0 transition-transform duration-300" style="transform: scale(0.46); transform-origin: center center;"></div>
                     </div>
                 </div>
             `;
@@ -6969,7 +6999,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                         <input type="url" id="pngSlot${i}Url" oninput="handleTransparentPngUrl(${i}, this.value)" placeholder="ឬដាក់ Link រូបភាព PNG (URL)..." class="flex-1 min-w-[140px] px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white">
                     </div>
 
-                    <!-- 4 Sliders -->
+                    <!-- 4 Live Sliders -->
                     <div class="pt-1.5 grid grid-cols-2 sm:grid-cols-4 gap-2">
                         <div class="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200/70 dark:border-slate-700">
                             <div class="flex justify-between text-[10px] font-extrabold text-slate-600 dark:text-slate-300 mb-1">
@@ -7006,7 +7036,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 </div>
             `).join('') + `
                 <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2.5">
-                    <button type="button" onclick="closeHeroSettingsModal()" class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">បោះបង់</button>
+                    <button type="button" onclick="if(typeof toggleModalSeeThroughMode==='function') toggleModalSeeThroughMode(false); closeHeroSettingsModal();" class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">បោះបង់</button>
                     <button type="submit" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold shadow-sm">រក្សាទុករូប PNG ទាំង 4</button>
                 </div>
             `;
@@ -7097,6 +7127,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                     const urlInput = document.getElementById(`pngSlot${slotIdx}Url`);
                     if (urlInput) urlInput.value = '';
                     updateLiveModalMiniStage(slotIdx);
+                    build4FloatingPngStage(slotIdx);
                 };
                 img.src = e.target.result;
             };
@@ -7109,6 +7140,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 tempUploadedPngs[slotIdx] = clean;
                 hero4Items[slotIdx].image = clean;
                 updateLiveModalMiniStage(slotIdx);
+                build4FloatingPngStage(slotIdx);
             }
         };
 
@@ -7123,7 +7155,8 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             }
 
             save4HeroPngsLocal();
-            build4FloatingPngStage();
+            if (isSeeThroughActive) window.toggleModalSeeThroughMode(false);
+            build4FloatingPngStage(-1);
             window.closeHeroSettingsModal?.();
 
             try {
@@ -7151,14 +7184,14 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                             useCustomMobileCoords = Boolean(snap.data().heroUseCustomMobileCoords);
                         }
                         save4HeroPngsLocal();
-                        build4FloatingPngStage();
+                        build4FloatingPngStage(-1);
                     }
                 });
             } catch (e) {}
         }, 600);
 
         loadSaved4HeroPngs();
-        window.addEventListener('DOMContentLoaded', () => setTimeout(build4FloatingPngStage, 60));
-        setTimeout(build4FloatingPngStage, 120);
+        window.addEventListener('DOMContentLoaded', () => setTimeout(() => build4FloatingPngStage(-1), 60));
+        setTimeout(() => build4FloatingPngStage(-1), 120);
     </script>
 </body></html>
