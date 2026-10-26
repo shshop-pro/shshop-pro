@@ -6477,23 +6477,23 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         setTimeout(renderCreativeHeroTitle, 140);
         document.addEventListener('click', () => setTimeout(renderCreativeHeroTitle, 70));
     </script>
-	<!-- 4 Frameless Floating PNG Hero Gadgets with Live Size, Position & Rotation Controls in Owner Mode -->
+	<!-- 4 Frameless Floating PNG Hero Gadgets (Proportional Auto-Fit for Small Phones + PC/Mobile Customizer) -->
     <style>
         @keyframes floatPngBob1 {
             0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-11px); }
+            50% { transform: translateY(-10px); }
         }
         @keyframes floatPngBob2 {
             0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-14px); }
+            50% { transform: translateY(-13px); }
         }
         @keyframes floatPngBob3 {
             0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-9px); }
+            50% { transform: translateY(-8px); }
         }
         @keyframes floatPngBob4 {
             0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-12px); }
+            50% { transform: translateY(-11px); }
         }
 
         .nexora-bob-0 { animation: floatPngBob1 5.4s ease-in-out infinite; }
@@ -6502,14 +6502,14 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         .nexora-bob-3 { animation: floatPngBob4 5.8s ease-in-out 0.3s infinite; }
 
         .nexora-png-item {
-            filter: drop-shadow(0 24px 28px rgba(18, 16, 27, 0.28));
+            filter: drop-shadow(0 22px 26px rgba(18, 16, 27, 0.28));
             transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s ease;
         }
         .dark .nexora-png-item {
-            filter: drop-shadow(0 24px 32px rgba(0, 0, 0, 0.65));
+            filter: drop-shadow(0 22px 30px rgba(0, 0, 0, 0.65));
         }
         .nexora-png-wrapper:hover .nexora-png-item {
-            filter: drop-shadow(0 30px 36px rgba(99, 102, 241, 0.45));
+            filter: drop-shadow(0 28px 34px rgba(99, 102, 241, 0.45));
         }
         .nexora-png-badge {
             opacity: 0;
@@ -6521,11 +6521,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             transform: translateY(0);
         }
         @media (max-width: 640px) {
-            /* Automatically scale down custom pixel sizes slightly on mobile screens so they fit cleanly */
-            #nexora4PngStage {
-                transform: scale(0.82);
-                transform-origin: center center;
-            }
             .nexora-png-badge {
                 opacity: 0.95;
                 transform: translateY(0);
@@ -6537,67 +6532,74 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         import { getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const HERO_PNG_STORAGE_KEY = 'shshop_pro_4_floating_png_v2';
+        const HERO_PNG_STORAGE_KEY = 'shshop_pro_4_floating_png_v3';
         const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'shshop-pro-app';
 
+        // Fixed Virtual Coordinate Canvas (540x450) so PC & Phone proportions NEVER collide
+        const STAGE_BASE_W = 540;
+        const STAGE_BASE_H = 450;
+
+        // Default 4 Transparent PNGs with well-spaced PC & Mobile coordinates
         const DEFAULT_4_HERO_PNGS = [
             {
                 productId: "prod-1",
                 title: "iPhone 16 Pro Max",
                 image: "https://pngimg.com/uploads/iphone_14/iphone_14_PNG20.png",
-                size: 270,
-                left: 6,
-                top: 8,
-                rotate: -4
+                size: 240, left: 4, top: 8, rotate: -4,
+                mSize: 215, mLeft: 2, mTop: 6, mRotate: -4
             },
             {
                 productId: "prod-3",
                 title: "AirPods Pro / Headphones",
                 image: "https://pngimg.com/uploads/headphones/headphones_PNG101980.png",
-                size: 195,
-                left: 58,
-                top: 2,
-                rotate: 12
+                size: 175, left: 60, top: 2, rotate: 12,
+                mSize: 155, mLeft: 58, mTop: 2, mRotate: 10
             },
             {
                 productId: "prod-6",
                 title: "Power Bank / Smart Watch",
                 image: "https://pngimg.com/uploads/watches/watches_PNG101443.png",
-                size: 145,
-                left: 36,
-                top: 58,
-                rotate: -8
+                size: 135, left: 12, top: 60, rotate: -8,
+                mSize: 125, mLeft: 8, mTop: 58, mRotate: -6
             },
             {
                 productId: "prod-4",
                 title: "MagSafe Case / Phone",
                 image: "https://pngimg.com/uploads/iphone_14/iphone_14_PNG41.png",
-                size: 175,
-                left: 64,
-                top: 48,
-                rotate: 10
+                size: 165, left: 58, top: 52, rotate: 10,
+                mSize: 150, mLeft: 56, mTop: 52, mRotate: 8
             }
         ];
 
         let hero4Items = JSON.parse(JSON.stringify(DEFAULT_4_HERO_PNGS));
+        let useCustomMobileCoords = false; // By default, auto-scales PC layout proportionally so you only edit once!
+        let activeEditDevice = 'pc'; // 'pc' or 'mobile'
         let tempUploadedPngs = ["", "", "", ""];
 
         function normalizeItemWithDefaults(item, idx) {
             const def = DEFAULT_4_HERO_PNGS[idx] || DEFAULT_4_HERO_PNGS[0];
+            const size = item?.size !== undefined ? Number(item.size) : def.size;
+            const left = item?.left !== undefined ? Number(item.left) : def.left;
+            const top = item?.top !== undefined ? Number(item.top) : def.top;
+            const rotate = item?.rotate !== undefined ? Number(item.rotate) : def.rotate;
             return {
                 productId: item?.productId || def.productId,
                 title: item?.title || def.title,
                 image: item?.image || def.image,
-                size: item?.size !== undefined ? Number(item.size) : def.size,
-                left: item?.left !== undefined ? Number(item.left) : def.left,
-                top: item?.top !== undefined ? Number(item.top) : def.top,
-                rotate: item?.rotate !== undefined ? Number(item.rotate) : def.rotate
+                size, left, top, rotate,
+                mSize: item?.mSize !== undefined ? Number(item.mSize) : size,
+                mLeft: item?.mLeft !== undefined ? Number(item.mLeft) : left,
+                mTop: item?.mTop !== undefined ? Number(item.mTop) : top,
+                mRotate: item?.mRotate !== undefined ? Number(item.mRotate) : rotate
             };
         }
 
         function loadSaved4HeroPngs() {
-            const stageEl = document.getElementById('nexora4PngStage');
+            const stageEl = document.getElementById('nexora4PngOuter');
             const attrJson = stageEl?.getAttribute('data-hero-pngs');
+            const attrMobMode = stageEl?.getAttribute('data-custom-mobile');
+            if (attrMobMode === 'true') useCustomMobileCoords = true;
+
             if (attrJson) {
                 try {
                     const parsed = JSON.parse(attrJson);
@@ -6610,7 +6612,10 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 const raw = localStorage.getItem(HERO_PNG_STORAGE_KEY);
                 if (raw) {
                     const parsed = JSON.parse(raw);
-                    if (Array.isArray(parsed) && parsed.length === 4) {
+                    if (Array.isArray(parsed.items) && parsed.items.length === 4) {
+                        hero4Items = parsed.items.map((it, i) => normalizeItemWithDefaults(it, i));
+                        useCustomMobileCoords = Boolean(parsed.useCustomMobileCoords);
+                    } else if (Array.isArray(parsed) && parsed.length === 4) {
                         hero4Items = parsed.map((it, i) => normalizeItemWithDefaults(it, i));
                     }
                 }
@@ -6619,12 +6624,40 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
 
         function save4HeroPngsLocal() {
             try {
-                localStorage.setItem(HERO_PNG_STORAGE_KEY, JSON.stringify(hero4Items));
+                localStorage.setItem(HERO_PNG_STORAGE_KEY, JSON.stringify({
+                    items: hero4Items,
+                    useCustomMobileCoords
+                }));
             } catch (e) {}
-            const stageEl = document.getElementById('nexora4PngStage');
-            if (stageEl) {
-                stageEl.setAttribute('data-hero-pngs', JSON.stringify(hero4Items));
+            const outerEl = document.getElementById('nexora4PngOuter');
+            if (outerEl) {
+                outerEl.setAttribute('data-hero-pngs', JSON.stringify(hero4Items));
+                outerEl.setAttribute('data-custom-mobile', String(useCustomMobileCoords));
             }
+        }
+
+        // Automatically scale the 540x450 virtual stage to fit ANY screen width (iPhone X 340px up to Desktop)
+        function updateStageAutoScale() {
+            const outer = document.getElementById('nexora4PngOuter');
+            const inner = document.getElementById('nexora4PngStage');
+            if (!outer || !inner) return;
+
+            const availableW = outer.clientWidth || window.innerWidth - 24;
+            const scale = Math.min(1.08, Math.max(0.52, availableW / STAGE_BASE_W));
+
+            inner.style.transform = `scale(${scale})`;
+            outer.style.height = `${Math.round(STAGE_BASE_H * scale)}px`;
+        }
+
+        function isMobileViewport() {
+            return window.innerWidth < 640;
+        }
+
+        function getActiveCoords(cfg) {
+            if (useCustomMobileCoords && isMobileViewport()) {
+                return { size: cfg.mSize, left: cfg.mLeft, top: cfg.mTop, rotate: cfg.mRotate };
+            }
+            return { size: cfg.size, left: cfg.left, top: cfg.top, rotate: cfg.rotate };
         }
 
         function build4FloatingPngStage() {
@@ -6632,54 +6665,73 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             const oldCard2 = document.getElementById('heroCard2');
             const oldCard3 = document.getElementById('heroCard3');
 
-            const showcaseParent = oldCard1?.parentElement || document.getElementById('nexora4PngStage')?.parentElement;
+            const showcaseParent = oldCard1?.parentElement || document.getElementById('nexora4PngOuter')?.parentElement;
             if (!showcaseParent) return;
 
             if (oldCard1) oldCard1.style.display = 'none';
             if (oldCard2) oldCard2.style.display = 'none';
             if (oldCard3) oldCard3.style.display = 'none';
 
+            // Adjust parent min-height on small mobile screens so there is no extra empty gap
+            showcaseParent.classList.remove('min-h-[380px]');
+            showcaseParent.classList.add('min-h-[290px]', 'sm:min-h-[450px]');
+
             const topHeroBtn = document.getElementById('btnHeroSetupLabel');
             if (topHeroBtn) topHeroBtn.textContent = "កែរូប PNG ទាំង 4 (Hero)";
             const quickEditSpan = document.querySelector('#heroQuickEditBtn span');
             if (quickEditSpan) quickEditSpan.textContent = "ប្តូររូប និងទំហំ/ទីតាំង PNG ទាំង 4";
 
-            let stage = document.getElementById('nexora4PngStage');
-            if (!stage) {
-                stage = document.createElement('div');
-                stage.id = 'nexora4PngStage';
-                stage.className = "relative w-full h-[380px] sm:h-[460px] xl:h-[490px] select-none";
-                showcaseParent.appendChild(stage);
+            let outer = document.getElementById('nexora4PngOuter');
+            if (!outer) {
+                outer = document.createElement('div');
+                outer.id = 'nexora4PngOuter';
+                outer.className = "relative w-full flex items-center justify-center overflow-visible select-none";
+                showcaseParent.appendChild(outer);
             }
 
-            stage.setAttribute('data-hero-pngs', JSON.stringify(hero4Items));
+            outer.setAttribute('data-hero-pngs', JSON.stringify(hero4Items));
+            outer.setAttribute('data-custom-mobile', String(useCustomMobileCoords));
+
             const zIndexes = [15, 25, 30, 20];
 
-            stage.innerHTML = `
-                <div class="absolute bottom-6 left-1/4 w-60 sm:w-80 h-6 bg-slate-900/20 dark:bg-black/50 rounded-full blur-xl pointer-events-none"></div>
-            ` + hero4Items.map((item, idx) => {
-                const cfg = normalizeItemWithDefaults(item, idx);
-                return `
-                    <div id="heroPngFloatingSlot-${idx}"
-                         onclick="triggerHeroPngOrder(${idx})"
-                         style="left: ${cfg.left}%; top: ${cfg.top}%; width: ${cfg.size}px; z-index: ${zIndexes[idx]};"
-                         class="nexora-png-wrapper nexora-bob-${idx} absolute cursor-pointer flex flex-col items-center group"
-                         title="ចុចដើម្បីកម្មង់ទិញ ${cfg.title}">
-                        <img id="heroPngFloatingImg-${idx}"
-                             src="${cfg.image}"
-                             alt="${cfg.title}"
-                             style="transform: rotate(${cfg.rotate}deg);"
-                             class="nexora-png-item w-full h-auto object-contain pointer-events-none">
-                        <div class="nexora-png-badge mt-1.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#12101B]/90 dark:bg-white/95 text-white dark:text-[#12101B] text-[10px] sm:text-[11px] font-extrabold shadow-lg backdrop-blur-md">
-                            <span class="truncate max-w-[125px]">${cfg.title}</span>
-                            <span class="w-4 h-4 rounded-full bg-[#D4FF33] text-[#12101B] flex items-center justify-center text-[9px]">
-                                <i class="ph-bold ph-shopping-cart-simple"></i>
-                            </span>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+            outer.innerHTML = `
+                <div id="nexora4PngStage"
+                     style="width: ${STAGE_BASE_W}px; height: ${STAGE_BASE_H}px; transform-origin: center center;"
+                     class="relative shrink-0 select-none">
+                    <!-- Soft Ground Shadow -->
+                    <div class="absolute bottom-5 left-1/4 w-72 h-6 bg-slate-900/20 dark:bg-black/50 rounded-full blur-xl pointer-events-none"></div>
+                    ${hero4Items.map((item, idx) => {
+                        const cfg = normalizeItemWithDefaults(item, idx);
+                        const coords = getActiveCoords(cfg);
+                        return `
+                            <div id="heroPngFloatingSlot-${idx}"
+                                 onclick="triggerHeroPngOrder(${idx})"
+                                 style="left: ${coords.left}%; top: ${coords.top}%; width: ${coords.size}px; z-index: ${zIndexes[idx]};"
+                                 class="nexora-png-wrapper nexora-bob-${idx} absolute cursor-pointer flex flex-col items-center group"
+                                 title="ចុចដើម្បីកម្មង់ទិញ ${cfg.title}">
+                                <img id="heroPngFloatingImg-${idx}"
+                                     src="${cfg.image}"
+                                     alt="${cfg.title}"
+                                     style="transform: rotate(${coords.rotate}deg);"
+                                     class="nexora-png-item w-full h-auto object-contain pointer-events-none">
+                                <div class="nexora-png-badge mt-1 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#12101B]/90 dark:bg-white/95 text-white dark:text-[#12101B] text-[11px] font-extrabold shadow-lg backdrop-blur-md">
+                                    <span class="truncate max-w-[130px]">${cfg.title}</span>
+                                    <span class="w-4 h-4 rounded-full bg-[#D4FF33] text-[#12101B] flex items-center justify-center text-[9px]">
+                                        <i class="ph-bold ph-shopping-cart-simple"></i>
+                                    </span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+
+            updateStageAutoScale();
         }
+
+        window.addEventListener('resize', () => {
+            build4FloatingPngStage();
+        });
 
         window.triggerHeroPngOrder = function(slotIdx) {
             const cfg = hero4Items[slotIdx];
@@ -6695,51 +6747,127 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             }
         };
 
-        // Render Live Mini-Stage inside the Customizer Modal so Owner sees all 4 PNGs moving in real time!
+        // Switch between Editing PC Layout vs Phone Layout inside the Modal
+        window.switchHeroEditDevice = function(deviceMode) {
+            // Save current slider values into hero4Items before switching tabs
+            saveCurrentSlidersToMemory();
+
+            activeEditDevice = deviceMode;
+            if (deviceMode === 'mobile') {
+                useCustomMobileCoords = true;
+            }
+
+            const btnPc = document.getElementById('editTabPC');
+            const btnMob = document.getElementById('editTabMobile');
+            const outerFrame = document.getElementById('livePreviewOuterFrame');
+            const stageMirror = document.getElementById('liveHeroMiniStageInner');
+
+            if (deviceMode === 'pc') {
+                if (btnPc) btnPc.className = "px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs cursor-pointer";
+                if (btnMob) btnMob.className = "px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer";
+                if (outerFrame) outerFrame.style.maxWidth = "100%";
+                if (stageMirror) stageMirror.style.transform = "scale(0.5)";
+            } else {
+                if (btnMob) btnMob.className = "px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs cursor-pointer";
+                if (btnPc) btnPc.className = "px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer";
+                // Narrow the preview frame to look like an iPhone X screen (340px wide)
+                if (outerFrame) outerFrame.style.maxWidth = "270px";
+                if (stageMirror) stageMirror.style.transform = "scale(0.44)";
+            }
+
+            populateSlidersForActiveDevice();
+            updateLiveModalMiniStage(-1);
+        };
+
+        // Copy PC Layout directly to Phone Layout with 1 click
+        window.syncMobileFromPcLayout = function() {
+            saveCurrentSlidersToMemory();
+            for (let i = 0; i < 4; i++) {
+                hero4Items[i].mSize = hero4Items[i].size;
+                hero4Items[i].mLeft = hero4Items[i].left;
+                hero4Items[i].mTop = hero4Items[i].top;
+                hero4Items[i].mRotate = hero4Items[i].rotate;
+            }
+            useCustomMobileCoords = false;
+            populateSlidersForActiveDevice();
+            updateLiveModalMiniStage(-1);
+            build4FloatingPngStage();
+            if (typeof window.showToast === 'function') {
+                window.showToast("បានកំណត់ឱ្យទូរស័ព្ទរួមទំហំស្វ័យប្រវត្តិតាមកុំព្យូទ័រ (Auto-Fit PC) ✓");
+            }
+        };
+
+        function saveCurrentSlidersToMemory() {
+            for (let i = 0; i < 4; i++) {
+                const sizeEl = document.getElementById(`pngSlot${i}Size`);
+                if (!sizeEl) continue;
+                const s = Number(sizeEl.value);
+                const l = Number(document.getElementById(`pngSlot${i}Left`)?.value || 0);
+                const t = Number(document.getElementById(`pngSlot${i}Top`)?.value || 0);
+                const r = Number(document.getElementById(`pngSlot${i}Rotate`)?.value || 0);
+
+                if (activeEditDevice === 'mobile') {
+                    hero4Items[i].mSize = s;
+                    hero4Items[i].mLeft = l;
+                    hero4Items[i].mTop = t;
+                    hero4Items[i].mRotate = r;
+                } else {
+                    hero4Items[i].size = s;
+                    hero4Items[i].left = l;
+                    hero4Items[i].top = t;
+                    hero4Items[i].rotate = r;
+                    if (!useCustomMobileCoords) {
+                        hero4Items[i].mSize = s;
+                        hero4Items[i].mLeft = l;
+                        hero4Items[i].mTop = t;
+                        hero4Items[i].mRotate = r;
+                    }
+                }
+            }
+        }
+
+        function populateSlidersForActiveDevice() {
+            for (let i = 0; i < 4; i++) {
+                const cfg = normalizeItemWithDefaults(hero4Items[i], i);
+                const s = activeEditDevice === 'mobile' ? cfg.mSize : cfg.size;
+                const l = activeEditDevice === 'mobile' ? cfg.mLeft : cfg.left;
+                const t = activeEditDevice === 'mobile' ? cfg.mTop : cfg.top;
+                const r = activeEditDevice === 'mobile' ? cfg.mRotate : cfg.rotate;
+
+                document.getElementById(`pngSlot${i}Size`).value = s;
+                document.getElementById(`pngSlot${i}Left`).value = l;
+                document.getElementById(`pngSlot${i}Top`).value = t;
+                document.getElementById(`pngSlot${i}Rotate`).value = r;
+
+                document.getElementById(`pngSlot${i}SizeVal`).textContent = `${s}px`;
+                document.getElementById(`pngSlot${i}LeftVal`).textContent = `${l}%`;
+                document.getElementById(`pngSlot${i}TopVal`).textContent = `${t}%`;
+                document.getElementById(`pngSlot${i}RotateVal`).textContent = `${r}°`;
+            }
+        }
+
         function updateLiveModalMiniStage(activeHighlightIdx = -1) {
             const miniStage = document.getElementById('liveHeroMiniStageInner');
             if (!miniStage) return;
 
             const zIndexes = [15, 25, 30, 20];
             miniStage.innerHTML = [0, 1, 2, 3].map(idx => {
-                const sizeVal = Number(document.getElementById(`pngSlot${idx}Size`)?.value || hero4Items[idx]?.size || 200);
-                const leftVal = Number(document.getElementById(`pngSlot${idx}Left`)?.value || hero4Items[idx]?.left || 0);
-                const topVal = Number(document.getElementById(`pngSlot${idx}Top`)?.value || hero4Items[idx]?.top || 0);
-                const rotVal = Number(document.getElementById(`pngSlot${idx}Rotate`)?.value || hero4Items[idx]?.rotate || 0);
+                const sizeVal = Number(document.getElementById(`pngSlot${idx}Size`)?.value || 200);
+                const leftVal = Number(document.getElementById(`pngSlot${idx}Left`)?.value || 0);
+                const topVal = Number(document.getElementById(`pngSlot${idx}Top`)?.value || 0);
+                const rotVal = Number(document.getElementById(`pngSlot${idx}Rotate`)?.value || 0);
                 const imgSrc = tempUploadedPngs[idx] || hero4Items[idx]?.image || '';
                 const isHighlighted = activeHighlightIdx === idx;
 
                 return `
                     <div style="left: ${leftVal}%; top: ${topVal}%; width: ${sizeVal}px; z-index: ${zIndexes[idx]};"
                          class="absolute flex flex-col items-center pointer-events-none transition-all duration-75 ${isHighlighted ? 'ring-2 ring-[#D4FF33] rounded-2xl bg-indigo-500/10 p-1' : ''}">
-                        <span class="px-1.5 py-0.2 rounded-full bg-indigo-600 text-white text-[9px] font-extrabold mb-0.5 shadow">#${idx + 1}</span>
+                        <span class="px-1.5 py-0.2 rounded-full bg-indigo-600 text-white text-[10px] font-extrabold mb-0.5 shadow">#${idx + 1}</span>
                         <img src="${imgSrc}" style="transform: rotate(${rotVal}deg);" class="w-full h-auto object-contain drop-shadow-xl">
                     </div>
                 `;
             }).join('');
         }
-
-        // Toggle "See-Through Mode" so you can also see the real page behind the modal
-        let isSeeThroughActive = false;
-        window.toggleModalSeeThroughMode = function() {
-            isSeeThroughActive = !isSeeThroughActive;
-            const modalBackdrop = document.getElementById('heroSettingsModal');
-            const modalBox = modalBackdrop?.firstElementChild;
-            const btnText = document.getElementById('seeThroughBtnText');
-
-            if (modalBackdrop && modalBox) {
-                if (isSeeThroughActive) {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                    modalBackdrop.className = "fixed inset-0 z-50 flex items-end sm:items-center justify-end p-0 sm:p-4 bg-transparent pointer-events-none overflow-y-auto";
-                    modalBox.className = "modal-animate bg-white/85 dark:bg-[#0f111a]/85 backdrop-blur-md border-t sm:border-2 border-indigo-500 rounded-t-3xl sm:rounded-3xl max-w-md w-full max-h-[88dvh] flex flex-col shadow-floating overflow-hidden my-auto pointer-events-auto";
-                    if (btnText) btnText.textContent = "បិទមុខងារមើលធ្លុះ (Normal View)";
-                } else {
-                    modalBackdrop.className = "fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/65 dark:bg-black/80 backdrop-blur-sm overflow-y-auto";
-                    modalBox.className = "modal-animate bg-white dark:bg-[#0f111a] border-t sm:border border-slate-200 dark:border-slate-800 rounded-t-3xl sm:rounded-3xl max-w-2xl w-full max-h-[92dvh] flex flex-col shadow-floating overflow-hidden my-auto";
-                    if (btnText) btnText.textContent = "មើលធ្លុះទៅវេបសាយផ្ទាល់ (See-Through)";
-                }
-            }
-        };
 
         window.liveUpdatePngTransform = function(idx) {
             const sizeVal = Number(document.getElementById(`pngSlot${idx}Size`)?.value || 200);
@@ -6752,67 +6880,59 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             document.getElementById(`pngSlot${idx}TopVal`).textContent = `${topVal}%`;
             document.getElementById(`pngSlot${idx}RotateVal`).textContent = `${rotVal}°`;
 
-            // 1. Update Live Mini-Stage at top of Modal
+            saveCurrentSlidersToMemory();
             updateLiveModalMiniStage(idx);
-
-            // 2. Update Real Website Stage behind Modal
-            const slotEl = document.getElementById(`heroPngFloatingSlot-${idx}`);
-            const imgEl = document.getElementById(`heroPngFloatingImg-${idx}`);
-            if (slotEl) {
-                slotEl.style.width = `${sizeVal}px`;
-                slotEl.style.left = `${leftVal}%`;
-                slotEl.style.top = `${topVal}%`;
-            }
-            if (imgEl) {
-                imgEl.style.transform = `rotate(${rotVal}deg)`;
-            }
+            build4FloatingPngStage();
         };
 
         window.resetSinglePngTransform = function(idx) {
             const def = DEFAULT_4_HERO_PNGS[idx] || DEFAULT_4_HERO_PNGS[0];
-            document.getElementById(`pngSlot${idx}Size`).value = def.size;
-            document.getElementById(`pngSlot${idx}Left`).value = def.left;
-            document.getElementById(`pngSlot${idx}Top`).value = def.top;
-            document.getElementById(`pngSlot${idx}Rotate`).value = def.rotate;
+            document.getElementById(`pngSlot${idx}Size`).value = activeEditDevice === 'mobile' ? def.mSize : def.size;
+            document.getElementById(`pngSlot${idx}Left`).value = activeEditDevice === 'mobile' ? def.mLeft : def.left;
+            document.getElementById(`pngSlot${idx}Top`).value = activeEditDevice === 'mobile' ? def.mTop : def.top;
+            document.getElementById(`pngSlot${idx}Rotate`).value = activeEditDevice === 'mobile' ? def.mRotate : def.rotate;
             window.liveUpdatePngTransform(idx);
         };
 
         function upgradeAdminHeroModalTo4PngSlots() {
             const formEl = document.querySelector('#heroSettingsModal form');
-            if (!formEl || formEl.dataset.upgradedLivePreview === "true") return;
-            formEl.dataset.upgradedLivePreview = "true";
+            if (!formEl || formEl.dataset.upgradedResponsive4Png === "true") return;
+            formEl.dataset.upgradedResponsive4Png = "true";
 
             const modalTitle = document.querySelector('#heroSettingsModal h3');
             if (modalTitle) {
-                modalTitle.textContent = "កំណត់រូប PNG ទំហំ ទីតាំង និងមុំបង្វិលទាំង 4 (Live Preview)";
+                modalTitle.textContent = "កំណត់រូប PNG ទាំង 4 (គាំទ្រទាំងកុំព្យូទ័រ 💻 និងទូរស័ព្ទ 📱)";
             }
 
             const slotLabels = [
                 { title: "1. រូប PNG ទី 1 (Main Center-Left)", badge: "bg-indigo-600" },
                 { title: "2. រូប PNG ទី 2 (Top-Right)", badge: "bg-purple-600" },
-                { title: "3. រូប PNG ទី 3 (Bottom-Center)", badge: "bg-emerald-600" },
+                { title: "3. រូប PNG ទី 3 (Bottom-Left/Center)", badge: "bg-emerald-600" },
                 { title: "4. រូប PNG ទី 4 (Bottom-Right)", badge: "bg-amber-600" }
             ];
 
-            // Sticky Live Preview Canvas right at the top of the modal so you ALWAYS see your changes!
             const livePreviewBoxHtml = `
                 <div class="sticky -top-5 z-30 bg-white/95 dark:bg-[#0f111a]/95 backdrop-blur-md pt-2 pb-3 border-b border-slate-200 dark:border-slate-800 -mx-2 px-2">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs font-extrabold text-indigo-600 dark:text-[#D4FF33] flex items-center gap-1.5">
-                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                            ផ្ទាំងមើលការកែប្រែផ្ទាល់ (Live Preview Stage)
-                        </span>
-                        <button type="button" onclick="toggleModalSeeThroughMode()" class="px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-700 dark:text-indigo-300 text-[11px] font-extrabold flex items-center gap-1 cursor-pointer transition">
-                            <i class="ph-bold ph-eye"></i>
-                            <span id="seeThroughBtnText">មើលធ្លុះទៅវេបសាយផ្ទាល់ (See-Through)</span>
+                    <!-- Device Switcher Tabs: PC vs Phone -->
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <div class="inline-flex items-center gap-1.5">
+                            <button type="button" id="editTabPC" onclick="switchHeroEditDevice('pc')" class="px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs cursor-pointer">
+                                <i class="ph-bold ph-desktop"></i> កែសម្រាប់កុំព្យូទ័រ (PC)
+                            </button>
+                            <button type="button" id="editTabMobile" onclick="switchHeroEditDevice('mobile')" class="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer">
+                                <i class="ph-bold ph-device-mobile"></i> កែសម្រាប់ទូរស័ព្ទ (Phone)
+                            </button>
+                        </div>
+
+                        <button type="button" onclick="syncMobileFromPcLayout()" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 text-[11px] font-extrabold flex items-center gap-1 cursor-pointer transition" title="ឱ្យទូរស័ព្ទរួមទំហំតាមកុំព្យូទ័រស្វ័យប្រវត្តិ">
+                            <i class="ph-bold ph-magic-wand"></i> ឱ្យទូរស័ព្ទរួមតាម PC ស្វ័យប្រវត្តិ
                         </button>
                     </div>
-                    <!-- Scaled 50% Live Mirror of the 460px Hero Stage -->
-                    <div class="relative w-full h-52 sm:h-60 rounded-2xl bg-gradient-to-br from-[#F3F1FF] via-[#FAF9FF] to-[#EAE8F8] dark:from-[#0E0C18] dark:to-[#181528] border-2 border-indigo-500/30 overflow-hidden flex items-center justify-center shadow-inner">
-                        <!-- Purple Glow Circle Mirror -->
+
+                    <!-- Scaled Live Mirror of the 540x450 Coordinate Stage -->
+                    <div id="livePreviewOuterFrame" class="mx-auto transition-all duration-300 relative w-full h-56 rounded-2xl bg-gradient-to-br from-[#F3F1FF] via-[#FAF9FF] to-[#EAE8F8] dark:from-[#0E0C18] dark:to-[#181528] border-2 border-indigo-500/30 overflow-hidden flex items-center justify-center shadow-inner">
                         <div class="w-40 h-40 rounded-full bg-indigo-400/25 dark:bg-indigo-600/30 blur-xs absolute pointer-events-none"></div>
-                        <!-- Scaled Stage Container -->
-                        <div id="liveHeroMiniStageInner" class="relative w-[520px] h-[440px] shrink-0" style="transform: scale(0.5); transform-origin: center center;"></div>
+                        <div id="liveHeroMiniStageInner" class="relative w-[540px] h-[450px] shrink-0 transition-transform duration-300" style="transform: scale(0.5); transform-origin: center center;"></div>
                     </div>
                 </div>
             `;
@@ -6849,14 +6969,14 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                         <input type="url" id="pngSlot${i}Url" oninput="handleTransparentPngUrl(${i}, this.value)" placeholder="ឬដាក់ Link រូបភាព PNG (URL)..." class="flex-1 min-w-[140px] px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white">
                     </div>
 
-                    <!-- 4 Sliders: Size (px), Left X (%), Top Y (%), Rotate (deg) -->
+                    <!-- 4 Sliders -->
                     <div class="pt-1.5 grid grid-cols-2 sm:grid-cols-4 gap-2">
                         <div class="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200/70 dark:border-slate-700">
                             <div class="flex justify-between text-[10px] font-extrabold text-slate-600 dark:text-slate-300 mb-1">
                                 <span>ទំហំ (Size)</span>
                                 <span id="pngSlot${i}SizeVal" class="font-mono text-indigo-600 dark:text-[#D4FF33]">200px</span>
                             </div>
-                            <input type="range" id="pngSlot${i}Size" min="80" max="420" step="5" oninput="liveUpdatePngTransform(${i})" class="w-full accent-indigo-600 cursor-pointer">
+                            <input type="range" id="pngSlot${i}Size" min="80" max="380" step="5" oninput="liveUpdatePngTransform(${i})" class="w-full accent-indigo-600 cursor-pointer">
                         </div>
 
                         <div class="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200/70 dark:border-slate-700">
@@ -6864,7 +6984,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                                 <span>ឆ្វេង-ស្តាំ (X)</span>
                                 <span id="pngSlot${i}LeftVal" class="font-mono text-indigo-600 dark:text-[#D4FF33]">10%</span>
                             </div>
-                            <input type="range" id="pngSlot${i}Left" min="-15" max="85" step="1" oninput="liveUpdatePngTransform(${i})" class="w-full accent-indigo-600 cursor-pointer">
+                            <input type="range" id="pngSlot${i}Left" min="-10" max="80" step="1" oninput="liveUpdatePngTransform(${i})" class="w-full accent-indigo-600 cursor-pointer">
                         </div>
 
                         <div class="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200/70 dark:border-slate-700">
@@ -6872,7 +6992,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                                 <span>លើ-ក្រោម (Y)</span>
                                 <span id="pngSlot${i}TopVal" class="font-mono text-indigo-600 dark:text-[#D4FF33]">10%</span>
                             </div>
-                            <input type="range" id="pngSlot${i}Top" min="-15" max="85" step="1" oninput="liveUpdatePngTransform(${i})" class="w-full accent-indigo-600 cursor-pointer">
+                            <input type="range" id="pngSlot${i}Top" min="-10" max="80" step="1" oninput="liveUpdatePngTransform(${i})" class="w-full accent-indigo-600 cursor-pointer">
                         </div>
 
                         <div class="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200/70 dark:border-slate-700">
@@ -6918,6 +7038,8 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             upgradeAdminHeroModalTo4PngSlots();
             const catalogList = getCatalogProductsList();
 
+            activeEditDevice = isMobileViewport() ? 'mobile' : 'pc';
+
             for (let i = 0; i < 4; i++) {
                 const cfg = normalizeItemWithDefaults(hero4Items[i], i);
                 const selectEl = document.getElementById(`pngSlot${i}ProductSelect`);
@@ -6931,19 +7053,10 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
 
                 const urlInput = document.getElementById(`pngSlot${i}Url`);
                 if (urlInput) urlInput.value = (cfg.image && cfg.image.startsWith('http')) ? cfg.image : '';
-
-                document.getElementById(`pngSlot${i}Size`).value = cfg.size;
-                document.getElementById(`pngSlot${i}Left`).value = cfg.left;
-                document.getElementById(`pngSlot${i}Top`).value = cfg.top;
-                document.getElementById(`pngSlot${i}Rotate`).value = cfg.rotate;
-
-                document.getElementById(`pngSlot${i}SizeVal`).textContent = `${cfg.size}px`;
-                document.getElementById(`pngSlot${i}LeftVal`).textContent = `${cfg.left}%`;
-                document.getElementById(`pngSlot${i}TopVal`).textContent = `${cfg.top}%`;
-                document.getElementById(`pngSlot${i}RotateVal`).textContent = `${cfg.rotate}°`;
             }
 
-            updateLiveModalMiniStage(-1);
+            populateSlidersForActiveDevice();
+            window.switchHeroEditDevice(activeEditDevice);
 
             const modal = document.getElementById('heroSettingsModal');
             modal?.classList.remove('hidden');
@@ -6979,6 +7092,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
 
                     const pngDataUrl = canvas.toDataURL('image/png');
                     tempUploadedPngs[slotIdx] = pngDataUrl;
+                    hero4Items[slotIdx].image = pngDataUrl;
 
                     const urlInput = document.getElementById(`pngSlot${slotIdx}Url`);
                     if (urlInput) urlInput.value = '';
@@ -6993,28 +7107,23 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             const clean = (urlVal || '').trim();
             if (clean) {
                 tempUploadedPngs[slotIdx] = clean;
+                hero4Items[slotIdx].image = clean;
                 updateLiveModalMiniStage(slotIdx);
             }
         };
 
         window.handleSave4PngHeroSettings = async function(event) {
             if (event) event.preventDefault();
-            const updated4 = [];
+            saveCurrentSlidersToMemory();
+
             for (let i = 0; i < 4; i++) {
-                updated4.push({
-                    productId: document.getElementById(`pngSlot${i}ProductSelect`)?.value || "prod-1",
-                    title: (document.getElementById(`pngSlot${i}Title`)?.value || '').trim() || `Product ${i + 1}`,
-                    image: tempUploadedPngs[i] || DEFAULT_4_HERO_PNGS[i].image,
-                    size: Number(document.getElementById(`pngSlot${i}Size`)?.value || DEFAULT_4_HERO_PNGS[i].size),
-                    left: Number(document.getElementById(`pngSlot${i}Left`)?.value || DEFAULT_4_HERO_PNGS[i].left),
-                    top: Number(document.getElementById(`pngSlot${i}Top`)?.value || DEFAULT_4_HERO_PNGS[i].top),
-                    rotate: Number(document.getElementById(`pngSlot${i}Rotate`)?.value || DEFAULT_4_HERO_PNGS[i].rotate)
-                });
+                hero4Items[i].productId = document.getElementById(`pngSlot${i}ProductSelect`)?.value || "prod-1";
+                hero4Items[i].title = (document.getElementById(`pngSlot${i}Title`)?.value || '').trim() || `Product ${i + 1}`;
+                hero4Items[i].image = tempUploadedPngs[i] || hero4Items[i].image || DEFAULT_4_HERO_PNGS[i].image;
             }
-            hero4Items = updated4;
+
             save4HeroPngsLocal();
             build4FloatingPngStage();
-            if (isSeeThroughActive) window.toggleModalSeeThroughMode();
             window.closeHeroSettingsModal?.();
 
             try {
@@ -7022,7 +7131,10 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 const db = getFirestore(app);
                 await setDoc(
                     doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'storeMeta'),
-                    { hero4FloatingPngs: hero4Items },
+                    {
+                        hero4FloatingPngs: hero4Items,
+                        heroUseCustomMobileCoords: useCustomMobileCoords
+                    },
                     { merge: true }
                 );
             } catch (e) {}
@@ -7035,6 +7147,9 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'storeMeta'), (snap) => {
                     if (snap.exists() && Array.isArray(snap.data().hero4FloatingPngs) && snap.data().hero4FloatingPngs.length === 4) {
                         hero4Items = snap.data().hero4FloatingPngs.map((it, i) => normalizeItemWithDefaults(it, i));
+                        if (snap.data().heroUseCustomMobileCoords !== undefined) {
+                            useCustomMobileCoords = Boolean(snap.data().heroUseCustomMobileCoords);
+                        }
                         save4HeroPngsLocal();
                         build4FloatingPngStage();
                     }
