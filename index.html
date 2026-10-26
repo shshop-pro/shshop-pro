@@ -7279,4 +7279,35 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             document.addEventListener('click', () => setTimeout(relocateSocialButtonsToTopTagline, 60));
         })();
     </script>
+	<!-- Remove the Sort Dropdown ("តម្រៀប៖ ថ្មីៗមុនគេ") and Grid/Table View Toggle ("កាតទំនិញ / តារាង") -->
+    <script>
+        (function() {
+            function removeSortAndViewControls() {
+                // 1. Find and hide the Sort dropdown ("តម្រៀប៖ ថ្មីៗមុនគេ")
+                const sortSelect = document.getElementById('sortSelect');
+                if (sortSelect) {
+                    const sortWrapper = sortSelect.closest('.relative') || sortSelect;
+                    sortWrapper.style.display = 'none';
+                }
+
+                // 2. Find and hide the Grid/Table buttons ("កាតទំនិញ" & "តារាង")
+                const viewGridBtn = document.getElementById('viewGridBtn') || document.querySelector('button[onclick*="setViewMode"]');
+                if (viewGridBtn) {
+                    const viewToggleBox = viewGridBtn.parentElement;
+                    if (viewToggleBox) viewToggleBox.style.display = 'none';
+                }
+
+                // 3. Also hide the parent wrapper holding both so no empty space is left on mobile
+                if (sortSelect && viewGridBtn) {
+                    const sharedRow = sortSelect.closest('.flex.items-center.gap-2, .flex.flex-wrap');
+                    if (sharedRow && !sharedRow.querySelector('#searchInput')) {
+                        sharedRow.style.display = 'none';
+                    }
+                }
+            }
+
+            window.addEventListener('DOMContentLoaded', removeSortAndViewControls);
+            setTimeout(removeSortAndViewControls, 50);
+        })();
+    </script>
 </body></html>
