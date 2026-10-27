@@ -6267,1804 +6267,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         import { getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const TITLE_STYLE_KEY = 'shshop_pro_hero_title_style_v2';
-        const TITLE_SCALE_KEY = 'shshop_pro_hero_title_scale_v1';
-        const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'shshop-pro-app';
-
-        function getSavedStyle() {
-            const heroH2 = document.querySelector('section h2');
-            const attrStyle = heroH2?.getAttribute('data-hero-style');
-            const localStyle = localStorage.getItem(TITLE_STYLE_KEY);
-            return parseInt(localStyle || attrStyle || '1', 10);
-        }
-
-        // Default scale is 125% (already larger and bolder than before)
-        function getSavedScale() {
-            const heroH2 = document.querySelector('section h2');
-            const attrScale = heroH2?.getAttribute('data-hero-scale');
-            const localScale = localStorage.getItem(TITLE_SCALE_KEY);
-            return parseInt(localScale || attrScale || '125', 10);
-        }
-
-        let currentTitleStyle = getSavedStyle();
-        let currentTitleScale = getSavedScale();
-        let cloudSyncTimer = null;
-
-        function syncAttributesAndLocal() {
-            const heroH2 = document.querySelector('section h2');
-            if (heroH2) {
-                heroH2.setAttribute('data-hero-style', String(currentTitleStyle));
-                heroH2.setAttribute('data-hero-scale', String(currentTitleScale));
-            }
-            try {
-                localStorage.setItem(TITLE_STYLE_KEY, String(currentTitleStyle));
-                localStorage.setItem(TITLE_SCALE_KEY, String(currentTitleScale));
-            } catch (e) {}
-        }
-
-        function saveToCloudDebounced() {
-            clearTimeout(cloudSyncTimer);
-            cloudSyncTimer = setTimeout(async () => {
-                try {
-                    const app = getApp();
-                    const db = getFirestore(app);
-                    await setDoc(
-                        doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'storeMeta'),
-                        {
-                            heroTitleStyle: currentTitleStyle,
-                            heroTitleScale: currentTitleScale
-                        },
-                        { merge: true }
-                    );
-                } catch (e) {}
-            }, 300);
-        }
-
-        window.setHeroTitleStyle = function(styleNum, event) {
-            if (event) event.stopPropagation();
-            currentTitleStyle = Number(styleNum);
-            syncAttributesAndLocal();
-            renderCreativeHeroTitle();
-            saveToCloudDebounced();
-        };
-
-        // Live-update title text size when dragging slider or clicking - / + buttons
-        window.setHeroTitleScale = function(scaleVal, event) {
-            if (event) event.stopPropagation();
-            currentTitleScale = Math.min(220, Math.max(70, Number(scaleVal) || 125));
-            syncAttributesAndLocal();
-
-            // Instantly scale all text elements inside the title without re-rendering the slider under the user's finger
-            const contentWrap = document.getElementById('heroTitleScaledContent');
-            if (contentWrap) {
-                contentWrap.style.setProperty('--title-scale', (currentTitleScale / 100).toFixed(2));
-            }
-            const lbl = document.getElementById('heroTitleScaleLabel');
-            if (lbl) lbl.textContent = `${currentTitleScale}%`;
-            const slider = document.getElementById('heroTitleScaleSlider');
-            if (slider && Number(slider.value) !== currentTitleScale) {
-                slider.value = currentTitleScale;
-            }
-
-            saveToCloudDebounced();
-        };
-
-        window.stepHeroTitleScale = function(delta, event) {
-            if (event) event.stopPropagation();
-            window.setHeroTitleScale(currentTitleScale + delta, event);
-        };
-
-        // Listen for Firebase Cloud updates so all customers see the exact style & size
-        setTimeout(() => {
-            try {
-                const app = getApp();
-                const db = getFirestore(app);
-                onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'storeMeta'), (snap) => {
-                    if (!snap.exists()) return;
-                    const data = snap.data();
-                    let changed = false;
-
-                    if (data.heroTitleStyle && Number(data.heroTitleStyle) !== currentTitleStyle) {
-                        currentTitleStyle = Number(data.heroTitleStyle);
-                        changed = true;
-                    }
-                    if (data.heroTitleScale && Number(data.heroTitleScale) !== currentTitleScale) {
-                        currentTitleScale = Number(data.heroTitleScale);
-                        changed = true;
-                    }
-                    if (changed) {
-                        syncAttributesAndLocal();
-                        renderCreativeHeroTitle();
-                    }
-                });
-            } catch (e) {}
-        }, 600);
-
-        function renderCreativeHeroTitle() {
-            const heroH2 = document.querySelector('section h2');
-            if (!heroH2) return;
-
-            syncAttributesAndLocal();
-
-            const labelEl = document.getElementById('langLabel');
-            const isEn = labelEl && labelEl.textContent.trim() === 'ខ្មែរ';
-            const isOwnerUnlocked = !document.getElementById('adminControlsGroup')?.classList.contains('hidden');
-            const sRatio = (currentTitleScale / 100).toFixed(2);
-
-            // Owner Mode Toolbar: 6 Style Buttons + Live Size Customizer (- / Slider / + / Reset)
-            const adminStyleSwitcherHtml = isOwnerUnlocked ? `
-                <div class="mb-3 p-2.5 rounded-2xl bg-white/95 dark:bg-slate-900/95 border border-indigo-200 dark:border-slate-700 shadow-md space-y-2 text-[11px] font-extrabold max-w-xl" onclick="event.stopPropagation()">
-                    <!-- Row 1: 6 Style Option Buttons -->
-                    <div class="flex flex-wrap items-center gap-1.5">
-                        <span class="px-1.5 text-slate-500 dark:text-slate-400">${isEn ? 'Style:' : 'ម៉ូតអក្សរ៖'}</span>
-                        ${[1, 2, 3, 4, 5, 6].map(n => `
-                            <button type="button" onclick="setHeroTitleStyle(${n}, event)" class="px-2.5 py-1 rounded-full transition cursor-pointer ${currentTitleStyle === n ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'}">
-                                #${n}
-                            </button>
-                        `).join('')}
-                    </div>
-
-                    <!-- Row 2: Live Font Size Customizer -->
-                    <div class="flex flex-wrap items-center gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800">
-                        <span class="px-1.5 text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                            <i class="ph-bold ph-text-aa text-indigo-600 dark:text-[#D4FF33] text-sm"></i>
-                            <span>${isEn ? 'Size:' : 'ទំហំអក្សរ៖'}</span>
-                        </span>
-
-                        <button type="button" onclick="stepHeroTitleScale(-10, event)" class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-100 dark:hover:bg-slate-700 text-slate-800 dark:text-white flex items-center justify-center font-black cursor-pointer" title="បន្ថយទំហំ">-</button>
-
-                        <input id="heroTitleScaleSlider"
-                               type="range"
-                               min="70"
-                               max="220"
-                               step="5"
-                               value="${currentTitleScale}"
-                               oninput="setHeroTitleScale(this.value, event)"
-                               class="w-28 sm:w-40 accent-indigo-600 cursor-pointer">
-
-                        <button type="button" onclick="stepHeroTitleScale(10, event)" class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-100 dark:hover:bg-slate-700 text-slate-800 dark:text-white flex items-center justify-center font-black cursor-pointer" title="បន្ថែមទំហំ">+</button>
-
-                        <span id="heroTitleScaleLabel" class="min-w-[44px] text-center px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-[#D4FF33] font-mono text-xs">${currentTitleScale}%</span>
-
-                        <button type="button" onclick="setHeroTitleScale(125, event)" class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] cursor-pointer">
-                            ${isEn ? 'Reset' : 'ដើមវិញ'}
-                        </button>
-                    </div>
-                </div>
-            ` : '';
-
-            heroH2.className = "block my-1 overflow-visible";
-            heroH2.style.cssText = "padding-top: 8px !important; padding-bottom: 8px !important; line-height: 1.75 !important; overflow: visible !important;";
-
-            const shopName = isEn ? "SEYHA" : "សីហា";
-            const line1 = isEn ? "Modern Mobile Shop" : "ហាងលក់ទូរស័ព្ទដៃទំនើប";
-            const line2 = isEn ? "& All Kinds of Original Accessories" : "និងគ្រឿងបន្លាស់គ្រប់ប្រភេទ";
-
-            // Dynamic responsive font-size helpers powered by --title-scale
-            const mainFont = "font-size: calc(clamp(1.6rem, 3.6vw, 2.65rem) * var(--title-scale, 1.25));";
-            const brandFont = "font-size: calc(clamp(1.95rem, 4.4vw, 3.25rem) * var(--title-scale, 1.25));";
-            const subFont  = "font-size: calc(clamp(1.1rem, 2.3vw, 1.65rem) * var(--title-scale, 1.25));";
-            const badgeFont = "font-size: calc(clamp(0.75rem, 1.2vw, 0.9rem) * var(--title-scale, 1.25));";
-
-            let styleMarkup = '';
-
-            if (currentTitleStyle === 1) {
-                styleMarkup = `
-                    <div class="relative pl-4 sm:pl-5 border-l-4 border-indigo-600 dark:border-[#D4FF33] space-y-2 overflow-visible">
-                        <div style="${mainFont}" class="font-black text-[#12101B] dark:text-white leading-[1.7] overflow-visible">
-                            <span class="kh-marker-highlight px-1">${shopName}</span>
-                            <span> ${line1}</span>
-                        </div>
-                        <div style="${subFont}" class="font-extrabold text-indigo-600 dark:text-indigo-300 leading-[1.7] overflow-visible">
-                            ${line2}
-                        </div>
-                    </div>
-                `;
-            } else if (currentTitleStyle === 2) {
-                styleMarkup = `
-                    <div class="space-y-2 overflow-visible">
-                        <div class="flex flex-wrap items-baseline gap-2.5 overflow-visible">
-                            <span style="${brandFont}" class="font-black kh-3d-brand leading-[1.65] py-1">${shopName}</span>
-                            <span style="${mainFont}" class="font-black text-slate-900 dark:text-white leading-[1.65] py-1">${line1}</span>
-                        </div>
-                        <div style="${subFont}" class="flex items-center gap-2 font-bold text-purple-700 dark:text-purple-300 leading-[1.65] py-0.5 overflow-visible">
-                            <span class="w-7 h-[3.5px] rounded-full bg-indigo-500 shrink-0"></span>
-                            <span>${line2}</span>
-                        </div>
-                    </div>
-                `;
-            } else if (currentTitleStyle === 3) {
-                styleMarkup = `
-                    <div class="p-4 sm:p-5 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-white dark:border-slate-800 shadow-soft space-y-2 overflow-visible">
-                        <div style="${badgeFont}" class="flex items-center gap-2 font-extrabold uppercase tracking-widest text-indigo-600 dark:text-[#D4FF33]">
-                            <i class="ph-fill ph-crown-simple"></i>
-                            <span>OFFICIAL SHOWROOM • ${shopName}</span>
-                        </div>
-                        <div style="${mainFont}" class="font-black text-[#12101B] dark:text-white leading-[1.7] overflow-visible">
-                            ${shopName} ${line1}
-                        </div>
-                        <div style="${subFont}" class="font-extrabold text-indigo-600 dark:text-indigo-300 leading-[1.7] overflow-visible">
-                            ${line2}
-                        </div>
-                    </div>
-                `;
-            } else if (currentTitleStyle === 4) {
-                styleMarkup = `
-                    <div class="space-y-2.5 overflow-visible">
-                        <div style="${mainFont}" class="font-black text-[#12101B] dark:text-white leading-[1.72] py-1 overflow-visible">
-                            <span class="text-indigo-600 dark:text-[#D4FF33]">${shopName}</span> ${line1}
-                        </div>
-                        <div class="kh-neon-bar w-32 sm:w-48"></div>
-                        <div style="${subFont}" class="font-extrabold text-slate-700 dark:text-slate-200 leading-[1.7] pt-0.5 overflow-visible">
-                            ${line2}
-                        </div>
-                    </div>
-                `;
-            } else if (currentTitleStyle === 5) {
-                styleMarkup = `
-                    <div class="space-y-2.5 overflow-visible">
-                        <div class="flex flex-wrap items-center gap-2.5 overflow-visible">
-                            <span style="${mainFont}" class="seyha-highlight-pill font-black leading-[1.6]">
-                                <i class="ph-fill ph-sparkle text-[0.75em]"></i>
-                                <span>${shopName}</span>
-                            </span>
-                            <span style="${mainFont}" class="font-black creative-title-gradient leading-[1.7] py-1">
-                                ${line1}
-                            </span>
-                        </div>
-                        <div class="pt-0.5">
-                            <span style="${subFont}" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-indigo-200/80 dark:border-indigo-500/30 font-extrabold text-indigo-700 dark:text-[#D4FF33] shadow-soft leading-[1.65]">
-                                <i class="ph-fill ph-seal-check text-indigo-600 dark:text-[#D4FF33]"></i>
-                                <span>${line2}</span>
-                            </span>
-                        </div>
-                    </div>
-                `;
-            } else {
-                styleMarkup = `
-                    <div class="space-y-2.5 overflow-visible">
-                        <div style="${badgeFont}" class="inline-flex items-center gap-2 px-3 py-1 rounded-lg kh-Royal-badge font-extrabold uppercase tracking-wider text-indigo-700 dark:text-[#D4FF33]">
-                            <i class="ph-fill ph-device-mobile-camera"></i>
-                            <span>${shopName} • SHSHOP PRO CAMBODIA</span>
-                        </div>
-                        <div style="${mainFont}" class="font-black text-[#12101B] dark:text-white leading-[1.72] py-0.5 overflow-visible">
-                            <span class="underline decoration-[#D4FF33] dark:decoration-indigo-500 decoration-4 underline-offset-8">${shopName}</span>
-                            <span> ${line1}</span>
-                        </div>
-                        <div style="${subFont}" class="flex items-center gap-2 pt-1 font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 dark:from-[#D4FF33] dark:via-indigo-300 dark:to-purple-300 bg-clip-text text-transparent leading-[1.7] overflow-visible">
-                            <i class="ph-bold ph-shooting-star text-indigo-600 dark:text-[#D4FF33] shrink-0"></i>
-                            <span>${line2}</span>
-                        </div>
-                    </div>
-                `;
-            }
-
-            heroH2.innerHTML = `
-                ${adminStyleSwitcherHtml}
-                <div id="heroTitleScaledContent" style="--title-scale: ${sRatio};" class="overflow-visible">
-                    ${styleMarkup}
-                </div>
-            `;
-
-            const topLogoBox = document.querySelector('header > div > div:first-child > div:first-child');
-            if (topLogoBox && !topLogoBox.dataset.seyhaUpgraded) {
-                topLogoBox.dataset.seyhaUpgraded = "true";
-                topLogoBox.className = "w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-[#12101B] via-indigo-950 to-indigo-700 border border-indigo-400/40 flex items-center justify-center text-white shadow-md shrink-0";
-                topLogoBox.innerHTML = `<span class="font-black text-xs sm:text-sm text-white leading-none py-1">សីហា</span>`;
-            }
-        }
-
-        window.addEventListener('DOMContentLoaded', () => setTimeout(renderCreativeHeroTitle, 90));
-        setTimeout(renderCreativeHeroTitle, 140);
-        document.addEventListener('click', (e) => {
-            // Avoid re-rendering while dragging the size slider
-            if (e.target && e.target.id === 'heroTitleScaleSlider') return;
-            setTimeout(renderCreativeHeroTitle, 70);
-        });
-    </script>
-	<!-- 4 Frameless Floating PNG Hero Gadgets (Proportional Auto-Fit for Small Phones + PC/Mobile Customizer) -->
-    <style>
-        @keyframes floatPngBob1 {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-        }
-        @keyframes floatPngBob2 {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-13px); }
-        }
-        @keyframes floatPngBob3 {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-8px); }
-        }
-        @keyframes floatPngBob4 {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-11px); }
-        }
-
-        .nexora-bob-0 { animation: floatPngBob1 5.4s ease-in-out infinite; }
-        .nexora-bob-1 { animation: floatPngBob2 6.2s ease-in-out 0.6s infinite; }
-        .nexora-bob-2 { animation: floatPngBob3 4.8s ease-in-out 1.1s infinite; }
-        .nexora-bob-3 { animation: floatPngBob4 5.8s ease-in-out 0.3s infinite; }
-
-        .nexora-png-item {
-            filter: drop-shadow(0 22px 26px rgba(18, 16, 27, 0.28));
-            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s ease;
-        }
-        .dark .nexora-png-item {
-            filter: drop-shadow(0 22px 30px rgba(0, 0, 0, 0.65));
-        }
-        .nexora-png-wrapper:hover .nexora-png-item {
-            filter: drop-shadow(0 28px 34px rgba(99, 102, 241, 0.45));
-        }
-        .nexora-png-badge {
-            opacity: 0;
-            transform: translateY(6px);
-            transition: all 0.25s ease;
-        }
-        .nexora-png-wrapper:hover .nexora-png-badge {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        @media (max-width: 640px) {
-            .nexora-png-badge {
-                opacity: 0.95;
-                transform: translateY(0);
-            }
-        }
-    </style>
-
-   <script type="module">
-        import { getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        const HERO_PNG_STORAGE_KEY = 'shshop_pro_4_floating_png_v3';
-        const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'shshop-pro-app';
-
-        // Fixed Virtual Coordinate Canvas (540x450) so PC & Phone proportions NEVER collide
-        const STAGE_BASE_W = 540;
-        const STAGE_BASE_H = 450;
-
-        const DEFAULT_4_HERO_PNGS = [
-            {
-                productId: "prod-1",
-                title: "iPhone 16 Pro Max",
-                image: "https://pngimg.com/uploads/iphone_14/iphone_14_PNG20.png",
-                size: 240, left: 4, top: 8, rotate: -4,
-                mSize: 215, mLeft: 2, mTop: 6, mRotate: -4
-            },
-            {
-                productId: "prod-3",
-                title: "AirPods Pro / Headphones",
-                image: "https://pngimg.com/uploads/headphones/headphones_PNG101980.png",
-                size: 175, left: 60, top: 2, rotate: 12,
-                mSize: 155, mLeft: 58, mTop: 2, mRotate: 10
-            },
-            {
-                productId: "prod-6",
-                title: "Power Bank / Smart Watch",
-                image: "https://pngimg.com/uploads/watches/watches_PNG101443.png",
-                size: 135, left: 12, top: 60, rotate: -8,
-                mSize: 125, mLeft: 8, mTop: 58, mRotate: -6
-            },
-            {
-                productId: "prod-4",
-                title: "MagSafe Case / Phone",
-                image: "https://pngimg.com/uploads/iphone_14/iphone_14_PNG41.png",
-                size: 165, left: 58, top: 52, rotate: 10,
-                mSize: 150, mLeft: 56, mTop: 52, mRotate: 8
-            }
-        ];
-
-        let hero4Items = JSON.parse(JSON.stringify(DEFAULT_4_HERO_PNGS));
-        let useCustomMobileCoords = false;
-        let activeEditDevice = 'pc';
-        let tempUploadedPngs = ["", "", "", ""];
-        let isSeeThroughActive = false;
-
-        function normalizeItemWithDefaults(item, idx) {
-            const def = DEFAULT_4_HERO_PNGS[idx] || DEFAULT_4_HERO_PNGS[0];
-            const size = item?.size !== undefined ? Number(item.size) : def.size;
-            const left = item?.left !== undefined ? Number(item.left) : def.left;
-            const top = item?.top !== undefined ? Number(item.top) : def.top;
-            const rotate = item?.rotate !== undefined ? Number(item.rotate) : def.rotate;
-            return {
-                productId: item?.productId || def.productId,
-                title: item?.title || def.title,
-                image: item?.image || def.image,
-                size, left, top, rotate,
-                mSize: item?.mSize !== undefined ? Number(item.mSize) : size,
-                mLeft: item?.mLeft !== undefined ? Number(item.mLeft) : left,
-                mTop: item?.mTop !== undefined ? Number(item.mTop) : top,
-                mRotate: item?.mRotate !== undefined ? Number(item.mRotate) : rotate
-            };
-        }
-
-        function loadSaved4HeroPngs() {
-            const stageEl = document.getElementById('nexora4PngOuter');
-            const attrJson = stageEl?.getAttribute('data-hero-pngs');
-            const attrMobMode = stageEl?.getAttribute('data-custom-mobile');
-            if (attrMobMode === 'true') useCustomMobileCoords = true;
-
-            if (attrJson) {
-                try {
-                    const parsed = JSON.parse(attrJson);
-                    if (Array.isArray(parsed) && parsed.length === 4) {
-                        hero4Items = parsed.map((it, i) => normalizeItemWithDefaults(it, i));
-                    }
-                } catch (e) {}
-            }
-            try {
-                const raw = localStorage.getItem(HERO_PNG_STORAGE_KEY);
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    if (Array.isArray(parsed.items) && parsed.items.length === 4) {
-                        hero4Items = parsed.items.map((it, i) => normalizeItemWithDefaults(it, i));
-                        useCustomMobileCoords = Boolean(parsed.useCustomMobileCoords);
-                    } else if (Array.isArray(parsed) && parsed.length === 4) {
-                        hero4Items = parsed.map((it, i) => normalizeItemWithDefaults(it, i));
-                    }
-                }
-            } catch (e) {}
-        }
-
-        function save4HeroPngsLocal() {
-            try {
-                localStorage.setItem(HERO_PNG_STORAGE_KEY, JSON.stringify({
-                    items: hero4Items,
-                    useCustomMobileCoords
-                }));
-            } catch (e) {}
-            const outerEl = document.getElementById('nexora4PngOuter');
-            if (outerEl) {
-                outerEl.setAttribute('data-hero-pngs', JSON.stringify(hero4Items));
-                outerEl.setAttribute('data-custom-mobile', String(useCustomMobileCoords));
-            }
-        }
-
-        function updateStageAutoScale() {
-            const outer = document.getElementById('nexora4PngOuter');
-            const inner = document.getElementById('nexora4PngStage');
-            if (!outer || !inner) return;
-
-            const availableW = outer.clientWidth || window.innerWidth - 24;
-            const scale = Math.min(1.08, Math.max(0.52, availableW / STAGE_BASE_W));
-
-            inner.style.transform = `scale(${scale})`;
-            outer.style.height = `${Math.round(STAGE_BASE_H * scale)}px`;
-        }
-
-        function isMobileViewport() {
-            return window.innerWidth < 640;
-        }
-
-        function getActiveCoords(cfg) {
-            if (useCustomMobileCoords && isMobileViewport()) {
-                return { size: cfg.mSize, left: cfg.mLeft, top: cfg.mTop, rotate: cfg.mRotate };
-            }
-            return { size: cfg.size, left: cfg.left, top: cfg.top, rotate: cfg.rotate };
-        }
-
-        function build4FloatingPngStage(activeHighlightIdx = -1) {
-            const oldCard1 = document.getElementById('heroCard1');
-            const oldCard2 = document.getElementById('heroCard2');
-            const oldCard3 = document.getElementById('heroCard3');
-
-            const showcaseParent = oldCard1?.parentElement || document.getElementById('nexora4PngOuter')?.parentElement;
-            if (!showcaseParent) return;
-
-            if (oldCard1) oldCard1.style.display = 'none';
-            if (oldCard2) oldCard2.style.display = 'none';
-            if (oldCard3) oldCard3.style.display = 'none';
-
-            showcaseParent.classList.remove('min-h-[380px]');
-            showcaseParent.classList.add('min-h-[290px]', 'sm:min-h-[450px]');
-
-            const topHeroBtn = document.getElementById('btnHeroSetupLabel');
-            if (topHeroBtn) topHeroBtn.textContent = "កែរូប PNG ទាំង 4 (Hero)";
-            const quickEditSpan = document.querySelector('#heroQuickEditBtn span');
-            if (quickEditSpan) quickEditSpan.textContent = "ប្តូររូប និងទំហំ/ទីតាំង PNG ទាំង 4";
-
-            let outer = document.getElementById('nexora4PngOuter');
-            if (!outer) {
-                outer = document.createElement('div');
-                outer.id = 'nexora4PngOuter';
-                outer.className = "relative w-full flex items-center justify-center overflow-visible select-none";
-                showcaseParent.appendChild(outer);
-            }
-
-            outer.setAttribute('data-hero-pngs', JSON.stringify(hero4Items));
-            outer.setAttribute('data-custom-mobile', String(useCustomMobileCoords));
-
-            const zIndexes = [15, 25, 30, 20];
-
-            outer.innerHTML = `
-                <div id="nexora4PngStage"
-                     style="width: ${STAGE_BASE_W}px; height: ${STAGE_BASE_H}px; transform-origin: center center;"
-                     class="relative shrink-0 select-none">
-                    <div class="absolute bottom-5 left-1/4 w-72 h-6 bg-slate-900/20 dark:bg-black/50 rounded-full blur-xl pointer-events-none"></div>
-                    ${hero4Items.map((item, idx) => {
-                        const cfg = normalizeItemWithDefaults(item, idx);
-                        const coords = getActiveCoords(cfg);
-                        const isHighlighted = activeHighlightIdx === idx;
-                        return `
-                            <div id="heroPngFloatingSlot-${idx}"
-                                 onclick="triggerHeroPngOrder(${idx})"
-                                 style="left: ${coords.left}%; top: ${coords.top}%; width: ${coords.size}px; z-index: ${zIndexes[idx]};"
-                                 class="nexora-png-wrapper nexora-bob-${idx} absolute cursor-pointer flex flex-col items-center group ${isHighlighted ? 'ring-4 ring-[#D4FF33] rounded-3xl bg-indigo-600/15 p-1' : ''}"
-                                 title="ចុចដើម្បីកម្មង់ទិញ ${cfg.title}">
-                                <img id="heroPngFloatingImg-${idx}"
-                                     src="${cfg.image}"
-                                     alt="${cfg.title}"
-                                     style="transform: rotate(${coords.rotate}deg);"
-                                     class="nexora-png-item w-full h-auto object-contain pointer-events-none">
-                                <div class="nexora-png-badge mt-1 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#12101B]/90 dark:bg-white/95 text-white dark:text-[#12101B] text-[11px] font-extrabold shadow-lg backdrop-blur-md">
-                                    <span class="truncate max-w-[130px]">${cfg.title}</span>
-                                    <span class="w-4 h-4 rounded-full bg-[#D4FF33] text-[#12101B] flex items-center justify-center text-[9px]">
-                                        <i class="ph-bold ph-shopping-cart-simple"></i>
-                                    </span>
-                                </div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-            `;
-
-            updateStageAutoScale();
-        }
-
-        window.addEventListener('resize', () => {
-            build4FloatingPngStage();
-        });
-
-        window.triggerHeroPngOrder = function(slotIdx) {
-            const cfg = hero4Items[slotIdx];
-            if (!cfg) return;
-            if (cfg.productId && typeof window.openLightbox === 'function') {
-                window.openLightbox(cfg.productId);
-                return;
-            }
-            const firstCard = document.querySelector('#productsGrid article [onclick^="openLightbox"]');
-            if (firstCard) {
-                const match = (firstCard.getAttribute('onclick') || '').match(/openLightbox\('([^']+)'\)/);
-                if (match && match[1]) window.openLightbox(match[1]);
-            }
-        };
-
-        // RESTORED: Toggle "See-Through Live View Mode" so you can watch the real page while customizing!
-        window.toggleModalSeeThroughMode = function(forceState) {
-            isSeeThroughActive = forceState !== undefined ? forceState : !isSeeThroughActive;
-            const modalBackdrop = document.getElementById('heroSettingsModal');
-            const modalBox = modalBackdrop?.firstElementChild;
-            const btnText = document.getElementById('seeThroughBtnText');
-            const miniPreviewWrapper = document.getElementById('livePreviewOuterFrame');
-
-            if (modalBackdrop && modalBox) {
-                if (isSeeThroughActive) {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                    // Dock to bottom on phone, or right side on PC, with transparent background so real Hero is 100% visible!
-                    modalBackdrop.className = "fixed inset-0 z-50 flex items-end sm:items-center justify-end p-0 sm:p-4 bg-transparent pointer-events-none overflow-y-auto";
-                    modalBox.className = "modal-animate bg-white/80 dark:bg-[#0f111a]/85 backdrop-blur-md border-t-2 sm:border-2 border-indigo-500 rounded-t-3xl sm:rounded-3xl max-w-md w-full max-h-[52dvh] sm:max-h-[88dvh] flex flex-col shadow-floating overflow-hidden mt-auto sm:my-auto pointer-events-auto";
-                    if (btnText) btnText.textContent = "បិទមើលធ្លុះ (Full Modal)";
-                    // Collapse the mini preview on mobile when in See-Through mode so you have more room to see the real page above
-                    if (miniPreviewWrapper && isMobileViewport()) {
-                        miniPreviewWrapper.classList.add('hidden');
-                    }
-                } else {
-                    modalBackdrop.className = "fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/65 dark:bg-black/80 backdrop-blur-sm overflow-y-auto";
-                    modalBox.className = "modal-animate bg-white dark:bg-[#0f111a] border-t sm:border border-slate-200 dark:border-slate-800 rounded-t-3xl sm:rounded-3xl max-w-2xl w-full max-h-[92dvh] flex flex-col shadow-floating overflow-hidden my-auto";
-                    if (btnText) btnText.textContent = "មើលធ្លុះលើវេបសាយផ្ទាល់ (See-Through)";
-                    if (miniPreviewWrapper) {
-                        miniPreviewWrapper.classList.remove('hidden');
-                    }
-                }
-            }
-        };
-
-        window.switchHeroEditDevice = function(deviceMode) {
-            saveCurrentSlidersToMemory();
-            activeEditDevice = deviceMode;
-            if (deviceMode === 'mobile') {
-                useCustomMobileCoords = true;
-            }
-
-            const btnPc = document.getElementById('editTabPC');
-            const btnMob = document.getElementById('editTabMobile');
-            const outerFrame = document.getElementById('livePreviewOuterFrame');
-            const stageMirror = document.getElementById('liveHeroMiniStageInner');
-
-            if (deviceMode === 'pc') {
-                if (btnPc) btnPc.className = "px-2.5 py-1.5 rounded-xl bg-indigo-600 text-white text-[11px] font-extrabold flex items-center gap-1 shadow-xs cursor-pointer";
-                if (btnMob) btnMob.className = "px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer";
-                if (outerFrame) outerFrame.style.maxWidth = "100%";
-                if (stageMirror) stageMirror.style.transform = "scale(0.46)";
-            } else {
-                if (btnMob) btnMob.className = "px-2.5 py-1.5 rounded-xl bg-indigo-600 text-white text-[11px] font-extrabold flex items-center gap-1 shadow-xs cursor-pointer";
-                if (btnPc) btnPc.className = "px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer";
-                if (outerFrame) outerFrame.style.maxWidth = "260px";
-                if (stageMirror) stageMirror.style.transform = "scale(0.42)";
-            }
-
-            populateSlidersForActiveDevice();
-            updateLiveModalMiniStage(-1);
-        };
-
-        window.syncMobileFromPcLayout = function() {
-            saveCurrentSlidersToMemory();
-            for (let i = 0; i < 4; i++) {
-                hero4Items[i].mSize = hero4Items[i].size;
-                hero4Items[i].mLeft = hero4Items[i].left;
-                hero4Items[i].mTop = hero4Items[i].top;
-                hero4Items[i].mRotate = hero4Items[i].rotate;
-            }
-            useCustomMobileCoords = false;
-            populateSlidersForActiveDevice();
-            updateLiveModalMiniStage(-1);
-            build4FloatingPngStage();
-            if (typeof window.showToast === 'function') {
-                window.showToast("បានកំណត់ឱ្យទូរស័ព្ទរួមទំហំស្វ័យប្រវត្តិតាមកុំព្យូទ័រ (Auto-Fit PC) ✓");
-            }
-        };
-
-        function saveCurrentSlidersToMemory() {
-            for (let i = 0; i < 4; i++) {
-                const sizeEl = document.getElementById(`pngSlot${i}Size`);
-                if (!sizeEl) continue;
-                const s = Number(sizeEl.value);
-                const l = Number(document.getElementById(`pngSlot${i}Left`)?.value || 0);
-                const t = Number(document.getElementById(`pngSlot${i}Top`)?.value || 0);
-                const r = Number(document.getElementById(`pngSlot${i}Rotate`)?.value || 0);
-
-                if (activeEditDevice === 'mobile') {
-                    hero4Items[i].mSize = s;
-                    hero4Items[i].mLeft = l;
-                    hero4Items[i].mTop = t;
-                    hero4Items[i].mRotate = r;
-                } else {
-                    hero4Items[i].size = s;
-                    hero4Items[i].left = l;
-                    hero4Items[i].top = t;
-                    hero4Items[i].rotate = r;
-                    if (!useCustomMobileCoords) {
-                        hero4Items[i].mSize = s;
-                        hero4Items[i].mLeft = l;
-                        hero4Items[i].mTop = t;
-                        hero4Items[i].mRotate = r;
-                    }
-                }
-            }
-        }
-
-        function populateSlidersForActiveDevice() {
-            for (let i = 0; i < 4; i++) {
-                const cfg = normalizeItemWithDefaults(hero4Items[i], i);
-                const s = activeEditDevice === 'mobile' ? cfg.mSize : cfg.size;
-                const l = activeEditDevice === 'mobile' ? cfg.mLeft : cfg.left;
-                const t = activeEditDevice === 'mobile' ? cfg.mTop : cfg.top;
-                const r = activeEditDevice === 'mobile' ? cfg.mRotate : cfg.rotate;
-
-                document.getElementById(`pngSlot${i}Size`).value = s;
-                document.getElementById(`pngSlot${i}Left`).value = l;
-                document.getElementById(`pngSlot${i}Top`).value = t;
-                document.getElementById(`pngSlot${i}Rotate`).value = r;
-
-                document.getElementById(`pngSlot${i}SizeVal`).textContent = `${s}px`;
-                document.getElementById(`pngSlot${i}LeftVal`).textContent = `${l}%`;
-                document.getElementById(`pngSlot${i}TopVal`).textContent = `${t}%`;
-                document.getElementById(`pngSlot${i}RotateVal`).textContent = `${r}°`;
-            }
-        }
-
-        function updateLiveModalMiniStage(activeHighlightIdx = -1) {
-            const miniStage = document.getElementById('liveHeroMiniStageInner');
-            if (!miniStage) return;
-
-            const zIndexes = [15, 25, 30, 20];
-            miniStage.innerHTML = [0, 1, 2, 3].map(idx => {
-                const sizeVal = Number(document.getElementById(`pngSlot${idx}Size`)?.value || 200);
-                const leftVal = Number(document.getElementById(`pngSlot${idx}Left`)?.value || 0);
-                const topVal = Number(document.getElementById(`pngSlot${idx}Top`)?.value || 0);
-                const rotVal = Number(document.getElementById(`pngSlot${idx}Rotate`)?.value || 0);
-                const imgSrc = tempUploadedPngs[idx] || hero4Items[idx]?.image || '';
-                const isHighlighted = activeHighlightIdx === idx;
-
-                return `
-                    <div style="left: ${leftVal}%; top: ${topVal}%; width: ${sizeVal}px; z-index: ${zIndexes[idx]};"
-                         class="absolute flex flex-col items-center pointer-events-none transition-all duration-75 ${isHighlighted ? 'ring-4 ring-[#D4FF33] rounded-2xl bg-indigo-500/15 p-1' : ''}">
-                        <span class="px-1.5 py-0.2 rounded-full bg-indigo-600 text-white text-[10px] font-extrabold mb-0.5 shadow">#${idx + 1}</span>
-                        <img src="${imgSrc}" style="transform: rotate(${rotVal}deg);" class="w-full h-auto object-contain drop-shadow-xl">
-                    </div>
-                `;
-            }).join('');
-        }
-
-        window.liveUpdatePngTransform = function(idx) {
-            const sizeVal = Number(document.getElementById(`pngSlot${idx}Size`)?.value || 200);
-            const leftVal = Number(document.getElementById(`pngSlot${idx}Left`)?.value || 0);
-            const topVal = Number(document.getElementById(`pngSlot${idx}Top`)?.value || 0);
-            const rotVal = Number(document.getElementById(`pngSlot${idx}Rotate`)?.value || 0);
-
-            document.getElementById(`pngSlot${idx}SizeVal`).textContent = `${sizeVal}px`;
-            document.getElementById(`pngSlot${idx}LeftVal`).textContent = `${leftVal}%`;
-            document.getElementById(`pngSlot${idx}TopVal`).textContent = `${topVal}%`;
-            document.getElementById(`pngSlot${idx}RotateVal`).textContent = `${rotVal}°`;
-
-            saveCurrentSlidersToMemory();
-            // 1. Update Sticky Mini-Stage inside the modal
-            updateLiveModalMiniStage(idx);
-            // 2. Update Real Website Hero Stage behind the modal with yellow highlight ring on active item
-            build4FloatingPngStage(idx);
-        };
-
-        window.resetSinglePngTransform = function(idx) {
-            const def = DEFAULT_4_HERO_PNGS[idx] || DEFAULT_4_HERO_PNGS[0];
-            document.getElementById(`pngSlot${idx}Size`).value = activeEditDevice === 'mobile' ? def.mSize : def.size;
-            document.getElementById(`pngSlot${idx}Left`).value = activeEditDevice === 'mobile' ? def.mLeft : def.left;
-            document.getElementById(`pngSlot${idx}Top`).value = activeEditDevice === 'mobile' ? def.mTop : def.top;
-            document.getElementById(`pngSlot${idx}Rotate`).value = activeEditDevice === 'mobile' ? def.mRotate : def.rotate;
-            window.liveUpdatePngTransform(idx);
-        };
-
-        function upgradeAdminHeroModalTo4PngSlots() {
-            const formEl = document.querySelector('#heroSettingsModal form');
-            if (!formEl || formEl.dataset.upgradedFullLiveView === "true") return;
-            formEl.dataset.upgradedFullLiveView = "true";
-
-            const modalTitle = document.querySelector('#heroSettingsModal h3');
-            if (modalTitle) {
-                modalTitle.textContent = "កំណត់រូប PNG ទាំង 4 (Live Preview + មើលធ្លុះលើវេបសាយផ្ទាល់)";
-            }
-
-            const slotLabels = [
-                { title: "1. រូប PNG ទី 1 (Main Center-Left)", badge: "bg-indigo-600" },
-                { title: "2. រូប PNG ទី 2 (Top-Right)", badge: "bg-purple-600" },
-                { title: "3. រូប PNG ទី 3 (Bottom-Left/Center)", badge: "bg-emerald-600" },
-                { title: "4. រូប PNG ទី 4 (Bottom-Right)", badge: "bg-amber-600" }
-            ];
-
-            // Sticky Header with: [PC Tab] [Phone Tab] [Auto-Fit Button] AND [See-Through Live View Button]!
-            const livePreviewBoxHtml = `
-                <div class="sticky -top-5 z-30 bg-white/95 dark:bg-[#0f111a]/95 backdrop-blur-md pt-2 pb-2.5 border-b border-slate-200 dark:border-slate-800 -mx-2 px-2 space-y-2">
-                    <div class="flex flex-wrap items-center justify-between gap-1.5">
-                        <div class="inline-flex items-center gap-1">
-                            <button type="button" id="editTabPC" onclick="switchHeroEditDevice('pc')" class="px-2.5 py-1.5 rounded-xl bg-indigo-600 text-white text-[11px] font-extrabold flex items-center gap-1 shadow-xs cursor-pointer">
-                                <i class="ph-bold ph-desktop"></i> PC
-                            </button>
-                            <button type="button" id="editTabMobile" onclick="switchHeroEditDevice('mobile')" class="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer">
-                                <i class="ph-bold ph-device-mobile"></i> Phone
-                            </button>
-                            <button type="button" onclick="syncMobileFromPcLayout()" class="px-2 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 text-[10px] font-extrabold flex items-center gap-1 cursor-pointer transition" title="ឱ្យទូរស័ព្ទរួមទំហំតាមកុំព្យូទ័រស្វ័យប្រវត្តិ">
-                                <i class="ph-bold ph-magic-wand"></i> Auto-Fit
-                            </button>
-                        </div>
-
-                        <!-- RESTORED SEE-THROUGH LIVE VIEW BUTTON -->
-                        <button type="button" onclick="toggleModalSeeThroughMode()" class="px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-800 dark:text-[#D4FF33] border border-amber-500/40 text-[11px] font-extrabold flex items-center gap-1 cursor-pointer transition">
-                            <i class="ph-bold ph-eye"></i>
-                            <span id="seeThroughBtnText">មើលធ្លុះលើវេបសាយផ្ទាល់ (See-Through)</span>
-                        </button>
-                    </div>
-
-                    <!-- Sticky Mini-Stage Live Preview Box -->
-                    <div id="livePreviewOuterFrame" class="mx-auto transition-all duration-300 relative w-full h-48 sm:h-52 rounded-2xl bg-gradient-to-br from-[#F3F1FF] via-[#FAF9FF] to-[#EAE8F8] dark:from-[#0E0C18] dark:to-[#181528] border-2 border-indigo-500/30 overflow-hidden flex items-center justify-center shadow-inner">
-                        <div class="w-36 h-36 rounded-full bg-indigo-400/25 dark:bg-indigo-600/30 blur-xs absolute pointer-events-none"></div>
-                        <div id="liveHeroMiniStageInner" class="relative w-[540px] h-[450px] shrink-0 transition-transform duration-300" style="transform: scale(0.46); transform-origin: center center;"></div>
-                    </div>
-                </div>
-            `;
-
-            formEl.innerHTML = livePreviewBoxHtml + slotLabels.map((s, i) => `
-                <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 space-y-2.5">
-                    <div class="flex items-center justify-between gap-2">
-                        <span class="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                            <span class="w-5 h-5 rounded-full ${s.badge} text-white text-[11px] flex items-center justify-center">${i + 1}</span>
-                            ${s.title}
-                        </span>
-                        <button type="button" onclick="resetSinglePngTransform(${i})" class="text-[11px] font-bold text-indigo-600 dark:text-[#D4FF33] hover:underline flex items-center gap-1 cursor-pointer">
-                            <i class="ph-bold ph-arrow-counter-clockwise"></i> កំណត់ដើមវិញ
-                        </button>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-500 mb-0.5">ភ្ជាប់ទៅទំនិញក្នុងហាង (ចុចរូបលោតកម្មង់)</label>
-                            <select id="pngSlot${i}ProductSelect" onchange="handlePngProductLink(${i}, this.value)" class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white"></select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-500 mb-0.5">ឈ្មោះទំនិញបង្ហាញលើរូប</label>
-                            <input type="text" id="pngSlot${i}Title" required placeholder="ឈ្មោះទំនិញ..." class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white">
-                        </div>
-                    </div>
-
-                    <div class="flex flex-wrap items-center gap-2">
-                        <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${s.badge} hover:opacity-90 text-white font-bold text-xs cursor-pointer transition shrink-0 shadow-xs">
-                            <i class="ph-bold ph-upload-simple"></i>
-                            <span>បង្ហោះរូប PNG ទី ${i + 1}</span>
-                            <input type="file" accept="image/png,image/webp,image/*" onchange="handleTransparentPngUpload(event, ${i})" class="hidden">
-                        </label>
-                        <input type="url" id="pngSlot${i}Url" oninput="handleTransparentPngUrl(${i}, this.value)" placeholder="ឬដាក់ Link រូបភាព PNG (URL)..." class="flex-1 min-w-[140px] px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white">
-                    </div>
-
-                    <!-- 4 Live Sliders -->
-                    <div class="pt-1.5 grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        <div class="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200/70 dark:border-slate-700">
-                            <div class="flex justify-between text-[10px] font-extrabold text-slate-600 dark:text-slate-300 mb-1">
-                                <span>ទំហំ (Size)</span>
-                                <span id="pngSlot${i}SizeVal" class="font-mono text-indigo-600 dark:text-[#D4FF33]">200px</span>
-                            </div>
-                            <input type="range" id="pngSlot${i}Size" min="80" max="380" step="5" oninput="liveUpdatePngTransform(${i})" class="w-full accent-indigo-600 cursor-pointer">
-                        </div>
-
-                        <div class="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200/70 dark:border-slate-700">
-                            <div class="flex justify-between text-[10px] font-extrabold text-slate-600 dark:text-slate-300 mb-1">
-                                <span>ឆ្វេង-ស្តាំ (X)</span>
-                                <span id="pngSlot${i}LeftVal" class="font-mono text-indigo-600 dark:text-[#D4FF33]">10%</span>
-                            </div>
-                            <input type="range" id="pngSlot${i}Left" min="-10" max="80" step="1" oninput="liveUpdatePngTransform(${i})" class="w-full accent-indigo-600 cursor-pointer">
-                        </div>
-
-                        <div class="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200/70 dark:border-slate-700">
-                            <div class="flex justify-between text-[10px] font-extrabold text-slate-600 dark:text-slate-300 mb-1">
-                                <span>លើ-ក្រោម (Y)</span>
-                                <span id="pngSlot${i}TopVal" class="font-mono text-indigo-600 dark:text-[#D4FF33]">10%</span>
-                            </div>
-                            <input type="range" id="pngSlot${i}Top" min="-10" max="80" step="1" oninput="liveUpdatePngTransform(${i})" class="w-full accent-indigo-600 cursor-pointer">
-                        </div>
-
-                        <div class="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200/70 dark:border-slate-700">
-                            <div class="flex justify-between text-[10px] font-extrabold text-slate-600 dark:text-slate-300 mb-1">
-                                <span>បង្វិល (Rotate)</span>
-                                <span id="pngSlot${i}RotateVal" class="font-mono text-indigo-600 dark:text-[#D4FF33]">0°</span>
-                            </div>
-                            <input type="range" id="pngSlot${i}Rotate" min="-45" max="45" step="1" oninput="liveUpdatePngTransform(${i})" class="w-full accent-indigo-600 cursor-pointer">
-                        </div>
-                    </div>
-                </div>
-            `).join('') + `
-                <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2.5">
-                    <button type="button" onclick="if(typeof toggleModalSeeThroughMode==='function') toggleModalSeeThroughMode(false); closeHeroSettingsModal();" class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">បោះបង់</button>
-                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold shadow-sm">រក្សាទុករូប PNG ទាំង 4</button>
-                </div>
-            `;
-
-            formEl.onsubmit = window.handleSave4PngHeroSettings;
-        }
-
-        function getCatalogProductsList() {
-            try {
-                const raw = localStorage.getItem('shshop_pro_saved_catalog_v1');
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    if (Array.isArray(parsed.products) && parsed.products.length > 0) {
-                        return parsed.products;
-                    }
-                }
-            } catch (e) {}
-            return [
-                { id: "prod-1", name: "iPhone 16 Pro Max 256GB", price: 1199 },
-                { id: "prod-2", name: "Apple 20W USB-C Power Adapter", price: 19 },
-                { id: "prod-3", name: "AirPods Pro (2nd Gen)", price: 229 },
-                { id: "prod-4", name: "MagSafe Clear Case", price: 12 },
-                { id: "prod-5", name: "9H Tempered Glass", price: 5 },
-                { id: "prod-6", name: "Magnetic Power Bank 10000mAh", price: 25 }
-            ];
-        }
-
-        window.openHeroSettingsModal = function() {
-            upgradeAdminHeroModalTo4PngSlots();
-            const catalogList = getCatalogProductsList();
-
-            activeEditDevice = isMobileViewport() ? 'mobile' : 'pc';
-
-            for (let i = 0; i < 4; i++) {
-                const cfg = normalizeItemWithDefaults(hero4Items[i], i);
-                const selectEl = document.getElementById(`pngSlot${i}ProductSelect`);
-                if (selectEl) {
-                    selectEl.innerHTML = catalogList.map(p =>
-                        `<option value="${p.id}" ${cfg.productId === p.id ? 'selected' : ''}>${p.name} ($${Number(p.price || 0).toFixed(2)})</option>`
-                    ).join('');
-                }
-                document.getElementById(`pngSlot${i}Title`).value = cfg.title || '';
-                tempUploadedPngs[i] = cfg.image || '';
-
-                const urlInput = document.getElementById(`pngSlot${i}Url`);
-                if (urlInput) urlInput.value = (cfg.image && cfg.image.startsWith('http')) ? cfg.image : '';
-            }
-
-            populateSlidersForActiveDevice();
-            window.switchHeroEditDevice(activeEditDevice);
-
-            const modal = document.getElementById('heroSettingsModal');
-            modal?.classList.remove('hidden');
-            modal?.classList.add('flex');
-        };
-
-        window.handlePngProductLink = function(slotIdx, prodId) {
-            const catalogList = getCatalogProductsList();
-            const found = catalogList.find(p => p.id === prodId);
-            if (found) {
-                const titleEl = document.getElementById(`pngSlot${slotIdx}Title`);
-                if (titleEl) titleEl.value = found.name;
-            }
-        };
-
-        window.handleTransparentPngUpload = function(event, slotIdx) {
-            const file = event.target.files?.[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const MAX_DIM = 680;
-                    let w = img.width, h = img.height;
-                    if (w > h && w > MAX_DIM) { h *= MAX_DIM / w; w = MAX_DIM; }
-                    else if (h > MAX_DIM) { w *= MAX_DIM / h; h = MAX_DIM; }
-                    canvas.width = w;
-                    canvas.height = h;
-                    const ctx = canvas.getContext('2d');
-                    ctx.clearRect(0, 0, w, h);
-                    ctx.drawImage(img, 0, 0, w, h);
-
-                    const pngDataUrl = canvas.toDataURL('image/png');
-                    tempUploadedPngs[slotIdx] = pngDataUrl;
-                    hero4Items[slotIdx].image = pngDataUrl;
-
-                    const urlInput = document.getElementById(`pngSlot${slotIdx}Url`);
-                    if (urlInput) urlInput.value = '';
-                    updateLiveModalMiniStage(slotIdx);
-                    build4FloatingPngStage(slotIdx);
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        };
-
-        window.handleTransparentPngUrl = function(slotIdx, urlVal) {
-            const clean = (urlVal || '').trim();
-            if (clean) {
-                tempUploadedPngs[slotIdx] = clean;
-                hero4Items[slotIdx].image = clean;
-                updateLiveModalMiniStage(slotIdx);
-                build4FloatingPngStage(slotIdx);
-            }
-        };
-
-        window.handleSave4PngHeroSettings = async function(event) {
-            if (event) event.preventDefault();
-            saveCurrentSlidersToMemory();
-
-            for (let i = 0; i < 4; i++) {
-                hero4Items[i].productId = document.getElementById(`pngSlot${i}ProductSelect`)?.value || "prod-1";
-                hero4Items[i].title = (document.getElementById(`pngSlot${i}Title`)?.value || '').trim() || `Product ${i + 1}`;
-                hero4Items[i].image = tempUploadedPngs[i] || hero4Items[i].image || DEFAULT_4_HERO_PNGS[i].image;
-            }
-
-            save4HeroPngsLocal();
-            if (isSeeThroughActive) window.toggleModalSeeThroughMode(false);
-            build4FloatingPngStage(-1);
-            window.closeHeroSettingsModal?.();
-
-            try {
-                const app = getApp();
-                const db = getFirestore(app);
-                await setDoc(
-                    doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'storeMeta'),
-                    {
-                        hero4FloatingPngs: hero4Items,
-                        heroUseCustomMobileCoords: useCustomMobileCoords
-                    },
-                    { merge: true }
-                );
-            } catch (e) {}
-        };
-
-        setTimeout(() => {
-            try {
-                const app = getApp();
-                const db = getFirestore(app);
-                onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'storeMeta'), (snap) => {
-                    if (snap.exists() && Array.isArray(snap.data().hero4FloatingPngs) && snap.data().hero4FloatingPngs.length === 4) {
-                        hero4Items = snap.data().hero4FloatingPngs.map((it, i) => normalizeItemWithDefaults(it, i));
-                        if (snap.data().heroUseCustomMobileCoords !== undefined) {
-                            useCustomMobileCoords = Boolean(snap.data().heroUseCustomMobileCoords);
-                        }
-                        save4HeroPngsLocal();
-                        build4FloatingPngStage(-1);
-                    }
-                });
-            } catch (e) {}
-        }, 600);
-
-        loadSaved4HeroPngs();
-        window.addEventListener('DOMContentLoaded', () => setTimeout(() => build4FloatingPngStage(-1), 60));
-        setTimeout(() => build4FloatingPngStage(-1), 120);
-    </script>
-	<!-- Replace "#heroTagline" with Compact Social Buttons (Facebook, Messenger, Telegram) & Remove "មើលទំនិញទាំងអស់" -->
-    <script>
-        (function() {
-            function relocateSocialButtonsToTopTagline() {
-                const heroSection = document.querySelector('section');
-                if (!heroSection) return;
-
-                // 1. Remove ONLY the "មើលទំនិញទាំងអស់" (Explore) button and the old bottom social row
-                const oldButtons = heroSection.querySelectorAll('button, a');
-                oldButtons.forEach(btn => {
-                    // Skip buttons inside our new top bar or admin style switcher
-                    if (btn.closest('#topCompactSocialBar') || btn.closest('h2')) return;
-
-                    const text = (btn.textContent || '').trim();
-                    const onclickAttr = btn.getAttribute('onclick') || '';
-
-                    if (
-                        text.includes('មើលទំនិញទាំងអស់') ||
-                        text.toLowerCase().includes('explore devices') ||
-                        onclickAttr.includes('catalogAnchor')
-                    ) {
-                        // Hide the entire old bottom CTA + social button container row
-                        const parentRow = btn.parentElement;
-                        if (parentRow && parentRow.tagName === 'DIV') {
-                            parentRow.style.display = 'none';
-                        } else {
-                            btn.style.display = 'none';
-                        }
-                    }
-                });
-
-                // 2. Find the "តារាងឆែកតម្លៃ និងកម្មង់ទំនិញផ្ទាល់តាម Telegram" badge (#heroTagline)
-                const taglineSpan = document.getElementById('heroTagline');
-                const taglineContainer = taglineSpan ? taglineSpan.parentElement : null;
-
-                if (taglineContainer && !document.getElementById('topCompactSocialBar')) {
-                    // Hide the old tagline pill ("តារាងឆែកតម្លៃ និងកម្មង់ទំនិញផ្ទាល់តាម Telegram")
-                    taglineContainer.style.display = 'none';
-
-                    // Create the new compact social buttons bar in that exact spot (under the menu header)
-                    const socialBar = document.createElement('div');
-                    socialBar.id = 'topCompactSocialBar';
-                    socialBar.className = "inline-flex flex-wrap items-center gap-2 mb-1";
-
-                    socialBar.innerHTML = `
-                        <!-- Facebook Page Compact Pill -->
-                        <button type="button" onclick="openFacebookPage()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1877F2] hover:bg-[#1565C0] text-white text-[11px] sm:text-xs font-extrabold shadow-xs transition hover:scale-105 active:scale-95 cursor-pointer">
-                            <i class="ph-fill ph-facebook-logo text-sm"></i>
-                            <span id="topBarFbText">Facebook Page</span>
-                        </button>
-
-                        <!-- Messenger Compact Pill -->
-                        <button type="button" onclick="openMessengerChat()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-[#00B2FF] to-[#006AFF] hover:opacity-95 text-white text-[11px] sm:text-xs font-extrabold shadow-xs transition hover:scale-105 active:scale-95 cursor-pointer">
-                            <i class="ph-fill ph-messenger-logo text-sm"></i>
-                            <span id="topBarMsgText">Messenger</span>
-                        </button>
-
-                        <!-- Telegram Compact Pill -->
-                        <button type="button" onclick="openDirectTelegramChat()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#229ED9] hover:bg-[#1c8ec4] text-white text-[11px] sm:text-xs font-extrabold shadow-xs transition hover:scale-105 active:scale-95 cursor-pointer">
-                            <i class="ph-fill ph-telegram-logo text-sm"></i>
-                            <span id="topBarTgText">Telegram</span>
-                        </button>
-                    `;
-
-                    // Insert right where the tagline badge was
-                    taglineContainer.parentNode.insertBefore(socialBar, taglineContainer);
-                }
-
-                // 3. Keep labels synced with Khmer / English language switcher
-                const labelEl = document.getElementById('langLabel');
-                const isEn = labelEl && labelEl.textContent.trim() === 'ខ្មែរ';
-                const fbTxt = document.getElementById('topBarFbText');
-                const msgTxt = document.getElementById('topBarMsgText');
-                const tgTxt = document.getElementById('topBarTgText');
-
-                if (fbTxt) fbTxt.textContent = isEn ? 'Facebook Page' : 'ផេក Facebook';
-                if (msgTxt) msgTxt.textContent = isEn ? 'Messenger' : 'ឆាត Messenger';
-                if (tgTxt) tgTxt.textContent = isEn ? 'Telegram' : 'ឆាត Telegram';
-            }
-
-            window.addEventListener('DOMContentLoaded', () => setTimeout(relocateSocialButtonsToTopTagline, 60));
-            setTimeout(relocateSocialButtonsToTopTagline, 120);
-            document.addEventListener('click', () => setTimeout(relocateSocialButtonsToTopTagline, 60));
-        })();
-    </script>
-	<!-- Remove the Sort Dropdown ("តម្រៀប៖ ថ្មីៗមុនគេ") and Grid/Table View Toggle ("កាតទំនិញ / តារាង") -->
-    <script>
-        (function() {
-            function removeSortAndViewControls() {
-                // 1. Find and hide the Sort dropdown ("តម្រៀប៖ ថ្មីៗមុនគេ")
-                const sortSelect = document.getElementById('sortSelect');
-                if (sortSelect) {
-                    const sortWrapper = sortSelect.closest('.relative') || sortSelect;
-                    sortWrapper.style.display = 'none';
-                }
-
-                // 2. Find and hide the Grid/Table buttons ("កាតទំនិញ" & "តារាង")
-                const viewGridBtn = document.getElementById('viewGridBtn') || document.querySelector('button[onclick*="setViewMode"]');
-                if (viewGridBtn) {
-                    const viewToggleBox = viewGridBtn.parentElement;
-                    if (viewToggleBox) viewToggleBox.style.display = 'none';
-                }
-
-                // 3. Also hide the parent wrapper holding both so no empty space is left on mobile
-                if (sortSelect && viewGridBtn) {
-                    const sharedRow = sortSelect.closest('.flex.items-center.gap-2, .flex.flex-wrap');
-                    if (sharedRow && !sharedRow.querySelector('#searchInput')) {
-                        sharedRow.style.display = 'none';
-                    }
-                }
-            }
-
-            window.addEventListener('DOMContentLoaded', removeSortAndViewControls);
-            setTimeout(removeSortAndViewControls, 50);
-        })();
-    </script>
-	<!-- Product Discount % Customizer + Live Customizable Badge Size (px) in Owner Mode -->
-    <style>
-        :root {
-            --sh-discount-badge-size: 12px;
-        }
-        /* Top-Right Discount % Badge (Scales proportionally with --sh-discount-badge-size) */
-        .sh-discount-corner-badge {
-            position: absolute;
-            top: 0.6rem;
-            right: 0.6rem;
-            z-index: 25;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.22em;
-            padding: 0.28em 0.65em;
-            border-radius: 9999px;
-            background: linear-gradient(135deg, #E1232E 0%, #be123c 100%);
-            color: #ffffff;
-            font-size: var(--sh-discount-badge-size, 12px);
-            line-height: 1.1;
-            font-weight: 900;
-            letter-spacing: 0.02em;
-            box-shadow: 0 6px 16px -3px rgba(225, 35, 46, 0.55);
-            border: 1.5px solid rgba(255, 255, 255, 0.88);
-            transform: translateZ(0);
-            animation: discountPulse 2.8s ease-in-out infinite;
-        }
-        .sh-discount-corner-badge i {
-            font-size: 0.95em;
-        }
-        @keyframes discountPulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-        /* Highlighted Discount Price + Small Strikethrough Original Price */
-        .sh-sale-price-highlight {
-            color: #E1232E;
-            font-weight: 900;
-        }
-        .dark .sh-sale-price-highlight {
-            color: #D4FF33;
-        }
-        .sh-normal-price-cut {
-            text-decoration: line-through;
-            text-decoration-thickness: 1.8px;
-            text-decoration-color: #ef4444;
-            color: #94a3b8;
-            font-size: 0.78em;
-            font-weight: 700;
-            margin-left: 0.35rem;
-        }
-    </style>
-
-    <script type="module">
-        import { getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        const DISCOUNT_STORAGE_KEY = 'shshop_pro_product_discounts_v1';
-        const BADGE_SIZE_STORAGE_KEY = 'shshop_pro_discount_badge_size_v1';
-        const CATALOG_STORAGE_KEY = 'shshop_pro_saved_catalog_v1';
-        const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'shshop-pro-app';
-
-        let productDiscounts = {};
-        let originalPriceBackup = {};
-        let discountBadgeSizePx = 12; // Default 12px (Customizable from 9px to 22px)
-
-        function applyBadgeSizeCssVariable(sizePx) {
-            const clamped = Math.min(24, Math.max(8, Number(sizePx) || 12));
-            discountBadgeSizePx = clamped;
-            document.documentElement.style.setProperty('--sh-discount-badge-size', `${clamped}px`);
-            document.body.setAttribute('data-discount-badge-size', String(clamped));
-
-            // Sync all UI sliders & labels if open
-            const modalSlider = document.getElementById('modalDiscountBadgeSizeSlider');
-            const modalLabel = document.getElementById('modalDiscountBadgeSizeVal');
-            if (modalSlider) modalSlider.value = clamped;
-            if (modalLabel) modalLabel.textContent = `${clamped}px`;
-
-            const barSlider = document.getElementById('ownerBarBadgeSizeSlider');
-            const barLabel = document.getElementById('ownerBarBadgeSizeVal');
-            if (barSlider) barSlider.value = clamped;
-            if (barLabel) barLabel.textContent = `${clamped}px`;
-        }
-
-        function loadSavedDiscounts() {
-            const bodyAttr = document.body.getAttribute('data-product-discounts');
-            if (bodyAttr) {
-                try { productDiscounts = JSON.parse(bodyAttr) || {}; } catch (e) {}
-            }
-            try {
-                const raw = localStorage.getItem(DISCOUNT_STORAGE_KEY);
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    if (parsed && typeof parsed === 'object') {
-                        productDiscounts = { ...productDiscounts, ...parsed };
-                    }
-                }
-            } catch (e) {}
-
-            const attrSize = document.body.getAttribute('data-discount-badge-size');
-            const savedSize = localStorage.getItem(BADGE_SIZE_STORAGE_KEY) || attrSize || '12';
-            applyBadgeSizeCssVariable(Number(savedSize));
-        }
-
-        function saveDiscountsLocalAndDom() {
-            try {
-                localStorage.setItem(DISCOUNT_STORAGE_KEY, JSON.stringify(productDiscounts));
-                localStorage.setItem(BADGE_SIZE_STORAGE_KEY, String(discountBadgeSizePx));
-            } catch (e) {}
-            document.body.setAttribute('data-product-discounts', JSON.stringify(productDiscounts));
-            document.body.setAttribute('data-discount-badge-size', String(discountBadgeSizePx));
-        }
-
-        async function syncDiscountsToCloud() {
-            saveDiscountsLocalAndDom();
-            try {
-                const app = getApp();
-                const db = getFirestore(app);
-                await setDoc(
-                    doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'storeMeta'),
-                    {
-                        productDiscountsMap: productDiscounts,
-                        discountBadgeSizePx: discountBadgeSizePx
-                    },
-                    { merge: true }
-                );
-            } catch (e) {}
-        }
-
-        // Live-update Discount % Badge Size from Owner Slider or Quick Preset Buttons
-        let sizeSyncTimer = null;
-        window.setDiscountBadgeSize = function(newSizePx) {
-            applyBadgeSizeCssVariable(newSizePx);
-            saveDiscountsLocalAndDom();
-            clearTimeout(sizeSyncTimer);
-            sizeSyncTimer = setTimeout(() => {
-                syncDiscountsToCloud();
-            }, 300);
-        };
-
-        function fmtUsd(num) {
-            const n = Number(num) || 0;
-            return '$' + n.toFixed(2);
-        }
-
-        function fmtKhr(usdAmount) {
-            const rate = Number(window.KHR_RATE || 4050);
-            const khr = Math.round((Number(usdAmount) || 0) * rate / 100) * 100;
-            return khr.toLocaleString('en-US') + ' ៛';
-        }
-
-        function calcDiscountedPrice(originalPrice, percent) {
-            const orig = Number(originalPrice) || 0;
-            const pct = Math.min(99, Math.max(0, Number(percent) || 0));
-            if (pct <= 0) return orig;
-            return Number((orig * (1 - pct / 100)).toFixed(2));
-        }
-
-        // 1. Inject Discount % + Badge Size Customizer into Owner's "Add / Edit Product" Modal
-        function injectDiscountFieldIntoProductModal() {
-            const priceInput = document.getElementById('prodPriceInput');
-            if (!priceInput || document.getElementById('prodDiscountPercentInput')) return;
-
-            const priceWrapper = priceInput.parentElement;
-            if (!priceWrapper) return;
-
-            const discountBlock = document.createElement('div');
-            discountBlock.className = "col-span-1 sm:col-span-2 p-3.5 rounded-2xl bg-rose-50/70 dark:bg-rose-950/20 border border-rose-200/80 dark:border-rose-800/50 space-y-3";
-            discountBlock.innerHTML = `
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                    <label class="text-xs font-extrabold text-rose-700 dark:text-rose-300 flex items-center gap-1.5">
-                        <i class="ph-fill ph-seal-percent text-base"></i>
-                        <span>បញ្ចុះតម្លៃ % (Discount % Customizer)</span>
-                    </label>
-                    <span id="liveDiscountPreviewText" class="text-xs font-mono font-extrabold text-slate-700 dark:text-slate-200">
-                        មិនមានបញ្ចុះតម្លៃ (0%)
-                    </span>
-                </div>
-
-                <div class="flex flex-wrap items-center gap-2">
-                    <div class="relative w-28">
-                        <input type="number" id="prodDiscountPercentInput" min="0" max="95" step="1" value="0"
-                               oninput="updateModalDiscountLivePreview()"
-                               class="w-full pl-3 pr-7 py-2 bg-white dark:bg-slate-800 border border-rose-300 dark:border-rose-700 rounded-xl text-sm font-black text-rose-600 dark:text-[#D4FF33] focus:outline-none">
-                        <span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
-                    </div>
-
-                    <div class="flex flex-wrap items-center gap-1">
-                        ${[0, 10, 15, 20, 30, 40, 50].map(pct => `
-                            <button type="button" onclick="setModalDiscountPreset(${pct})"
-                                    class="px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold transition cursor-pointer ${pct === 0 ? 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300' : 'bg-rose-600/10 hover:bg-rose-600 hover:text-white text-rose-600 dark:text-rose-300 border border-rose-500/20'}">
-                                ${pct === 0 ? 'បិទ (0%)' : `-${pct}%`}
-                            </button>
-                        `).join('')}
-                    </div>
-                </div>
-
-                <!-- NEW: Customize Discount % Badge Size (9px to 22px) + Live Badge Preview -->
-                <div class="pt-2.5 border-t border-rose-200/70 dark:border-rose-800/50 flex flex-wrap items-center justify-between gap-3">
-                    <div class="flex-1 min-w-[180px]">
-                        <div class="flex items-center justify-between text-[11px] font-extrabold text-slate-700 dark:text-slate-300 mb-1">
-                            <span>ទំហំលេខ % លើរូបទំនិញ (Badge Size)</span>
-                            <span id="modalDiscountBadgeSizeVal" class="font-mono text-rose-600 dark:text-[#D4FF33]">${discountBadgeSizePx}px</span>
-                        </div>
-                        <input type="range" id="modalDiscountBadgeSizeSlider" min="9" max="22" step="1" value="${discountBadgeSizePx}"
-                               oninput="setDiscountBadgeSize(this.value)"
-                               class="w-full accent-rose-600 cursor-pointer">
-                    </div>
-
-                    <!-- Quick Size Preset Pills + Live Sample Badge -->
-                    <div class="flex items-center gap-1.5">
-                        ${[
-                            { label: 'S', size: 10 },
-                            { label: 'M', size: 12 },
-                            { label: 'L', size: 15 },
-                            { label: 'XL', size: 18 }
-                        ].map(b => `
-                            <button type="button" onclick="setDiscountBadgeSize(${b.size})"
-                                    class="px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-rose-200 dark:border-slate-700 text-[10px] font-extrabold hover:bg-rose-600 hover:text-white transition cursor-pointer">
-                                ${b.label}
-                            </button>
-                        `).join('')}
-
-                        <span class="relative inline-flex items-center px-2 py-1">
-                            <span class="sh-discount-corner-badge !static !transform-none">
-                                <i class="ph-fill ph-lightning"></i>
-                                <span id="modalSampleBadgePct">-40%</span>
-                            </span>
-                        </span>
-                    </div>
-                </div>
-            `;
-
-            priceWrapper.parentNode.insertBefore(discountBlock, priceWrapper.nextSibling);
-            priceInput.addEventListener('input', () => window.updateModalDiscountLivePreview());
-        }
-
-        // 2. Inject a Live "Badge Size" Slider Bar right above the Products Grid when in Owner Mode
-        function renderOwnerBadgeSizeToolbar() {
-            const isOwnerUnlocked = !document.getElementById('adminControlsGroup')?.classList.contains('hidden');
-            let toolbar = document.getElementById('ownerDiscountSizeBar');
-
-            if (!isOwnerUnlocked) {
-                if (toolbar) toolbar.remove();
-                return;
-            }
-
-            const mainGrid = document.getElementById('productsGrid');
-            if (!mainGrid) return;
-
-            if (!toolbar) {
-                toolbar = document.createElement('div');
-                toolbar.id = 'ownerDiscountSizeBar';
-                toolbar.className = "mb-4 p-3 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-rose-300/70 dark:border-rose-700/50 shadow-sm flex flex-wrap items-center justify-between gap-3";
-                toolbar.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <span class="w-7 h-7 rounded-xl bg-rose-600 text-white flex items-center justify-center text-sm shadow-xs">
-                            <i class="ph-bold ph-percent"></i>
-                        </span>
-                        <div>
-                            <div class="text-xs font-extrabold text-slate-900 dark:text-white">កំណត់ទំហំលេខបញ្ចុះតម្លៃ % (Discount % Badge Size)</div>
-                            <div class="text-[10px] text-slate-500 dark:text-slate-400">អូសដើម្បីពង្រីក ឬបង្រួមស្លាក -40% នៅជ្រុងខាងលើស្តាំនៃរូបទំនិញទាំងអស់</div>
-                        </div>
-                    </div>
-
-                    <div class="flex flex-wrap items-center gap-2.5">
-                        <div class="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl">
-                            <input type="range" id="ownerBarBadgeSizeSlider" min="9" max="22" step="1" value="${discountBadgeSizePx}"
-                                   oninput="setDiscountBadgeSize(this.value)"
-                                   class="w-28 sm:w-36 accent-rose-600 cursor-pointer">
-                            <span id="ownerBarBadgeSizeVal" class="font-mono text-xs font-black text-rose-600 dark:text-[#D4FF33] w-9 text-right">${discountBadgeSizePx}px</span>
-                        </div>
-
-                        <div class="inline-flex items-center gap-1">
-                            ${[
-                                { label: 'តូច (10px)', size: 10 },
-                                { label: 'មធ្យម (12px)', size: 12 },
-                                { label: 'ធំ (15px)', size: 15 },
-                                { label: 'ធំខ្លាំង (18px)', size: 18 }
-                            ].map(b => `
-                                <button type="button" onclick="setDiscountBadgeSize(${b.size})"
-                                        class="px-2.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-600 hover:text-white text-rose-600 dark:text-rose-300 text-[10px] font-extrabold transition cursor-pointer">
-                                    ${b.label}
-                                </button>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-                mainGrid.parentNode.insertBefore(toolbar, mainGrid);
-            }
-        }
-
-        window.setModalDiscountPreset = function(pct) {
-            const inp = document.getElementById('prodDiscountPercentInput');
-            if (inp) {
-                inp.value = pct;
-                window.updateModalDiscountLivePreview();
-            }
-        };
-
-        window.updateModalDiscountLivePreview = function() {
-            const priceInp = document.getElementById('prodPriceInput');
-            const discInp = document.getElementById('prodDiscountPercentInput');
-            const previewEl = document.getElementById('liveDiscountPreviewText');
-            const samplePct = document.getElementById('modalSampleBadgePct');
-            if (!priceInp || !discInp || !previewEl) return;
-
-            const normalPrice = Number(priceInp.value) || 0;
-            const pct = Math.min(95, Math.max(0, Number(discInp.value) || 0));
-
-            if (samplePct) {
-                samplePct.textContent = `-${pct > 0 ? pct : 40}%`;
-            }
-
-            if (pct > 0 && normalPrice > 0) {
-                const salePrice = calcDiscountedPrice(normalPrice, pct);
-                previewEl.innerHTML = `តម្លៃដើម <span class="line-through text-slate-400">${fmtUsd(normalPrice)}</span> ➔ តម្លៃលក់ថ្មី <span class="text-rose-600 dark:text-[#D4FF33] font-black text-sm">${fmtUsd(salePrice)} (-${pct}%)</span>`;
-            } else {
-                previewEl.textContent = "មិនមានបញ្ចុះតម្លៃ (0%)";
-            }
-        };
-
-        window.openQuickDiscountPrompt = async function(prodId, event) {
-            if (event) event.stopPropagation();
-            const currentEntry = productDiscounts[prodId] || { percent: 0 };
-            const currentPct = currentEntry.percent || 0;
-
-            const inputStr = prompt(
-                `កំណត់ភាគរយបញ្ចុះតម្លៃ (Discount %) សម្រាប់ទំនិញនេះ (0 ដល់ 95)៖\nឧទាហរណ៍៖ វាយលេខ 40 សម្រាប់បញ្ចុះតម្លៃ 40% (ឬវាយ 0 ដើម្បីដកការបញ្ចុះតម្លៃ)`,
-                String(currentPct)
-            );
-            if (inputStr === null) return;
-
-            const newPct = Math.min(95, Math.max(0, parseInt(inputStr.replace(/[^0-9]/g, ''), 10) || 0));
-            applyProductDiscountChange(prodId, newPct);
-        };
-
-        function applyProductDiscountChange(prodId, newPct, explicitNormalPrice = null) {
-            let catalogData = null;
-            try {
-                const raw = localStorage.getItem(CATALOG_STORAGE_KEY);
-                if (raw) catalogData = JSON.parse(raw);
-            } catch (e) {}
-
-            let origPrice = explicitNormalPrice !== null
-                ? Number(explicitNormalPrice)
-                : (productDiscounts[prodId]?.originalPrice || originalPriceBackup[prodId] || null);
-
-            if (catalogData && Array.isArray(catalogData.products)) {
-                const item = catalogData.products.find(p => p.id === prodId);
-                if (item) {
-                    if (!origPrice) origPrice = Number(item.originalPrice || item.price);
-                    const finalSalePrice = newPct > 0 ? calcDiscountedPrice(origPrice, newPct) : origPrice;
-                    item.originalPrice = origPrice;
-                    item.discountPercent = newPct;
-                    item.price = finalSalePrice;
-                    try {
-                        localStorage.setItem(CATALOG_STORAGE_KEY, JSON.stringify(catalogData));
-                    } catch (e) {}
-                }
-            }
-
-            if (origPrice) {
-                originalPriceBackup[prodId] = origPrice;
-            }
-
-            if (newPct > 0) {
-                productDiscounts[prodId] = {
-                    percent: newPct,
-                    originalPrice: origPrice || 0
-                };
-            } else {
-                delete productDiscounts[prodId];
-            }
-
-            syncDiscountsToCloud();
-            decorateAllProductCardsWithDiscounts();
-        }
-
-        function hookProductModalOpenAndSubmit() {
-            const modal = document.getElementById('productModal');
-            const form = modal?.querySelector('form');
-            if (!form || form.dataset.discountHooked === "true") return;
-            form.dataset.discountHooked = "true";
-
-            injectDiscountFieldIntoProductModal();
-
-            const observer = new MutationObserver(() => {
-                if (!modal.classList.contains('hidden')) {
-                    injectDiscountFieldIntoProductModal();
-                    const prodId = document.getElementById('prodIdInput')?.value || '';
-                    const priceInp = document.getElementById('prodPriceInput');
-                    const discInp = document.getElementById('prodDiscountPercentInput');
-
-                    if (prodId && productDiscounts[prodId]) {
-                        const saved = productDiscounts[prodId];
-                        if (priceInp && saved.originalPrice > 0) {
-                            priceInp.value = saved.originalPrice;
-                        }
-                        if (discInp) {
-                            discInp.value = saved.percent || 0;
-                        }
-                    } else if (discInp) {
-                        discInp.value = 0;
-                    }
-                    applyBadgeSizeCssVariable(discountBadgeSizePx);
-                    window.updateModalDiscountLivePreview();
-                }
-            });
-            observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
-
-            form.addEventListener('submit', () => {
-                const prodId = document.getElementById('prodIdInput')?.value || '';
-                const priceInp = document.getElementById('prodPriceInput');
-                const discInp = document.getElementById('prodDiscountPercentInput');
-                const normalPrice = Number(priceInp?.value || 0);
-                const pct = Math.min(95, Math.max(0, Number(discInp?.value || 0)));
-
-                if (normalPrice > 0 && pct > 0 && priceInp) {
-                    const salePrice = calcDiscountedPrice(normalPrice, pct);
-                    priceInp.value = salePrice;
-
-                    setTimeout(() => {
-                        let targetId = prodId;
-                        if (!targetId) {
-                            try {
-                                const raw = localStorage.getItem(CATALOG_STORAGE_KEY);
-                                const parsed = raw ? JSON.parse(raw) : null;
-                                if (parsed?.products?.length) {
-                                    targetId = parsed.products[0].id;
-                                }
-                            } catch (e) {}
-                        }
-                        if (targetId) {
-                            applyProductDiscountChange(targetId, pct, normalPrice);
-                        }
-                    }, 120);
-                } else if (prodId && pct === 0) {
-                    setTimeout(() => {
-                        applyProductDiscountChange(prodId, 0, normalPrice);
-                    }, 120);
-                }
-            }, true);
-        }
-
-        function decorateAllProductCardsWithDiscounts() {
-            const isOwnerUnlocked = !document.getElementById('adminControlsGroup')?.classList.contains('hidden');
-            renderOwnerBadgeSizeToolbar();
-
-            const allArticles = document.querySelectorAll('#topPicksGrid article, #productsGrid article');
-
-            allArticles.forEach(card => {
-                const triggerEl = card.querySelector('[onclick*="openLightbox"], [onclick*="quickAdd"]');
-                const onclickStr = triggerEl?.getAttribute('onclick') || card.getAttribute('onclick') || '';
-                const match = onclickStr.match(/'([^']+)'/);
-                if (!match || !match[1]) return;
-                const prodId = match[1];
-
-                const imgContainer = card.querySelector('.aspect-square, .relative.overflow-hidden') || card.firstElementChild;
-                if (imgContainer) {
-                    imgContainer.classList.add('relative');
-                }
-
-                card.querySelectorAll('.sh-discount-corner-badge, .sh-owner-discount-btn').forEach(el => el.remove());
-
-                const discInfo = productDiscounts[prodId];
-                const pct = discInfo?.percent ? Number(discInfo.percent) : 0;
-
-                const priceEls = Array.from(card.querySelectorAll('span, div, p')).filter(el =>
-                    el.children.length === 0 && /^\$\d+(\.\d+)?$/.test((el.textContent || '').trim())
-                );
-                const mainPriceEl = priceEls[0] || card.querySelector('[data-price-box]');
-
-                if (mainPriceEl && !originalPriceBackup[prodId]) {
-                    const parsedDomPrice = parseFloat((mainPriceEl.textContent || '').replace(/[^0-9.]/g, ''));
-                    if (!isNaN(parsedDomPrice) && parsedDomPrice > 0) {
-                        originalPriceBackup[prodId] = discInfo?.originalPrice || parsedDomPrice;
-                    }
-                }
-
-                // A. Top-Right Corner "-40%" Badge (Automatically uses custom --sh-discount-badge-size!)
-                if (pct > 0 && imgContainer) {
-                    const badge = document.createElement('div');
-                    badge.className = 'sh-discount-corner-badge';
-                    badge.innerHTML = `<i class="ph-fill ph-lightning"></i><span>-${pct}%</span>`;
-                    imgContainer.appendChild(badge);
-                }
-
-                // B. Owner Mode Quick "% Discount" Button on Card
-                if (isOwnerUnlocked && imgContainer) {
-                    const ownerBtn = document.createElement('button');
-                    ownerBtn.type = 'button';
-                    ownerBtn.className = 'sh-owner-discount-btn absolute bottom-2 right-2 z-30 px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-extrabold shadow-md flex items-center gap-1 cursor-pointer';
-                    ownerBtn.innerHTML = `<i class="ph-bold ph-percent"></i><span>${pct > 0 ? `-${pct}%` : 'ដាក់ %'}</span>`;
-                    ownerBtn.onclick = (e) => window.openQuickDiscountPrompt(prodId, e);
-                    imgContainer.appendChild(ownerBtn);
-                }
-
-                // C. Highlighted Discount Price + Small Strikethrough Original Price
-                const priceTarget = card.querySelector('.sh-price-render-slot') || mainPriceEl;
-                if (priceTarget) {
-                    priceTarget.classList.add('sh-price-render-slot');
-                    const origPrice = discInfo?.originalPrice || originalPriceBackup[prodId] || parseFloat((priceTarget.textContent || '').replace(/[^0-9.]/g, '')) || 0;
-
-                    if (pct > 0 && origPrice > 0) {
-                        const salePrice = calcDiscountedPrice(origPrice, pct);
-                        priceTarget.innerHTML = `
-                            <span class="inline-flex flex-wrap items-baseline">
-                                <span class="sh-sale-price-highlight">${fmtUsd(salePrice)}</span>
-                                <span class="sh-normal-price-cut">${fmtUsd(origPrice)}</span>
-                            </span>
-                        `;
-                        const parentPriceCol = priceTarget.parentElement;
-                        if (parentPriceCol) {
-                            const khrEl = Array.from(parentPriceCol.querySelectorAll('span, div, p')).find(el =>
-                                el !== priceTarget && (el.textContent || '').includes('៛')
-                            );
-                            if (khrEl) khrEl.textContent = fmtKhr(salePrice);
-                        }
-                    } else if (origPrice > 0) {
-                        priceTarget.innerHTML = `<span>${fmtUsd(origPrice)}</span>`;
-                    }
-                }
-            });
-        }
-
-        const origOpenLightbox = window.openLightbox;
-        if (typeof origOpenLightbox === 'function') {
-            window.openLightbox = function(prodId) {
-                origOpenLightbox(prodId);
-                setTimeout(() => {
-                    const discInfo = productDiscounts[prodId];
-                    const lbPriceUsd = document.getElementById('lightboxPriceUSD');
-                    const lbPriceKhr = document.getElementById('lightboxPriceKHR');
-                    if (discInfo && discInfo.percent > 0 && discInfo.originalPrice > 0 && lbPriceUsd) {
-                        const salePrice = calcDiscountedPrice(discInfo.originalPrice, discInfo.percent);
-                        lbPriceUsd.innerHTML = `
-                            <span class="sh-sale-price-highlight">${fmtUsd(salePrice)}</span>
-                            <span class="sh-normal-price-cut text-base">${fmtUsd(discInfo.originalPrice)}</span>
-                            <span style="font-size: var(--sh-discount-badge-size, 12px);" class="ml-2 px-2.5 py-0.5 rounded-full bg-rose-600 text-white font-black align-middle">-${discInfo.percent}%</span>
-                        `;
-                        if (lbPriceKhr) {
-                            lbPriceKhr.textContent = `≈ ${fmtKhr(salePrice)}`;
-                        }
-                    }
-                }, 40);
-            };
-        }
-
-        // Listen for Firebase Cloud real-time updates (both discounts and badge size)
-        setTimeout(() => {
-            try {
-                const app = getApp();
-                const db = getFirestore(app);
-                onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'storeMeta'), (snap) => {
-                    if (snap.exists()) {
-                        const data = snap.data();
-                        if (data.productDiscountsMap) {
-                            productDiscounts = data.productDiscountsMap || {};
-                        }
-                        if (data.discountBadgeSizePx !== undefined) {
-                            applyBadgeSizeCssVariable(Number(data.discountBadgeSizePx));
-                        }
-                        saveDiscountsLocalAndDom();
-                        decorateAllProductCardsWithDiscounts();
-                    }
-                });
-            } catch (e) {}
-        }, 600);
-
-        loadSavedDiscounts();
-        window.addEventListener('DOMContentLoaded', () => {
-            hookProductModalOpenAndSubmit();
-            setTimeout(decorateAllProductCardsWithDiscounts, 150);
-        });
-        setTimeout(() => {
-            hookProductModalOpenAndSubmit();
-            decorateAllProductCardsWithDiscounts();
-        }, 250);
-
-        const gridsObserver = new MutationObserver(() => {
-            decorateAllProductCardsWithDiscounts();
-        });
-        window.addEventListener('DOMContentLoaded', () => {
-            const mainGrid = document.getElementById('productsGrid');
-            const topGrid = document.getElementById('topPicksGrid');
-            if (mainGrid) gridsObserver.observe(mainGrid, { childList: true });
-            if (topGrid) gridsObserver.observe(topGrid, { childList: true });
-        });
-        document.addEventListener('click', () => setTimeout(decorateAllProductCardsWithDiscounts, 100));
-    </script>
-	<!-- Dual Receipt Engine: Customer Receipt (Khmer/EN + Custom Phone, No KHQR) + Owner Telegram Bot Order Card -->
-    <div id="modernReceiptModal" class="fixed inset-0 z-[9998] hidden items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-md overflow-y-auto" onclick="if(event.target===this) closeModernReceiptModal()">
-        <div class="bg-white dark:bg-[#12101B] border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-4 sm:p-5 shadow-floating my-auto space-y-3.5 animate-fade-in">
-            <!-- Modal Header (Auto-Switches Khmer / English) -->
-            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
-                <div class="flex items-center gap-2.5">
-                    <span class="w-9 h-9 rounded-xl bg-[#12101B] dark:bg-[#D4FF33] text-[#D4FF33] dark:text-[#12101B] flex items-center justify-center shadow-xs">
-                        <i class="ph-fill ph-receipt text-xl"></i>
-                    </span>
-                    <div>
-                        <h3 id="rcptModalTitle" class="text-sm font-black text-slate-900 dark:text-white leading-tight">វិក្កយបត្រកម្មង់ទំនិញផ្លូវការ</h3>
-                        <p id="rcptModalSub" class="text-[11px] font-bold text-emerald-600 dark:text-[#D4FF33]">បានចម្លងអត្ថបទ និងបង្កើតរូបវិក្កយបត្ររួចរាល់ ✓</p>
-                    </div>
-                </div>
-                <button type="button" onclick="closeModernReceiptModal()" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center cursor-pointer">
-                    <i class="ph-bold ph-x text-sm"></i>
-                </button>
-            </div>
-
-            <!-- OWNER-ONLY QUICK CUSTOMIZER: Shop Phone Number + Preview Switcher (Customer vs Owner Bot Design) -->
-            <div id="rcptOwnerConfigBox" class="hidden p-3 rounded-2xl bg-indigo-50/90 dark:bg-slate-900 border border-indigo-200 dark:border-indigo-500/40 space-y-2.5">
-                <div class="flex items-center justify-between">
-                    <span class="text-[11px] font-extrabold text-indigo-700 dark:text-[#D4FF33] flex items-center gap-1">
-                        <i class="ph-fill ph-gear-six"></i> កំណត់លេខទូរស័ព្ទហាងលើវិក្កយបត្រ (Owner Mode)
-                    </span>
-                    <div class="inline-flex rounded-lg bg-white dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700 text-[10px] font-extrabold">
-                        <button type="button" id=" tabPreviewCust" onclick="switchReceiptPreviewType('customer')" class="px-2 py-0.5 rounded-md bg-indigo-600 text-white cursor-pointer">ភ្ញៀវ (Customer)</button>
-                        <button type="button" id="tabPreviewOwner" onclick="switchReceiptPreviewType('owner')" class="px-2 py-0.5 rounded-md text-slate-600 dark:text-slate-300 cursor-pointer">Telegram Bot (Owner)</button>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-1.5">
-                    <input type="text" id="rcptShopPhoneInput" placeholder="ឧ. 012 345 678 / 096 888 9999" class="flex-1 px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white">
-                    <button type="button" onclick="saveReceiptShopPhone()" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold shrink-0 cursor-pointer">
-                        រក្សាទុក
-                    </button>
-                </div>
-
-                <!-- Optional Telegram Bot Token & Chat ID if not set in main app -->
-                <details class="text-[11px] text-slate-600 dark:text-slate-300">
-                    <summary class="cursor-pointer font-bold text-indigo-600 dark:text-indigo-400">កំណត់ Telegram Bot ដើម្បីទទួលរូបវិក្កយបត្រស្វ័យប្រវត្តិ (Bot Token / Chat ID)</summary>
-                    <div class="mt-2 space-y-1.5">
-                        <input type="text" id="rcptBotTokenInput" placeholder="Telegram Bot Token (ឧ. 123456:ABC-DEF...)" class="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-mono">
-                        <div class="flex gap-1.5">
-                            <input type="text" id="rcptBotChatIdInput" placeholder="Telegram Chat ID (ឧ. 987654321 ឬ -100...)" class="flex-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-mono">
-                            <button type="button" onclick="saveReceiptBotConfig()" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-extrabold text-[11px] cursor-pointer">រក្សាទុក Bot</button>
-                        </div>
-                    </div>
-                </details>
-            </div>
-
-            <!-- Live Generated Receipt Image Preview -->
-            <div class="rounded-2xl bg-slate-100 dark:bg-slate-900 p-2.5 flex items-center justify-center max-h-[60dvh] overflow-y-auto border border-slate-200 dark:border-slate-800">
-                <img id="modernReceiptPreviewImg" src="" alt="SHSHOP PRO Receipt" class="w-full h-auto rounded-xl shadow-md object-contain">
-            </div>
-
-            <!-- Action Buttons (Auto-Switches Khmer / English) -->
-            <div class="grid grid-cols-2 gap-2 pt-1">
-                <button type="button" onclick="copyModernReceiptImage()" class="py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-sm transition active:scale-95 cursor-pointer">
-                    <i class="ph-bold ph-copy text-base"></i>
-                    <span id="btnCopyReceiptImgText">ចម្លងរូបវិក្កយបត្រ</span>
-                </button>
-                <button type="button" onclick="downloadModernReceiptImage()" class="py-2.5 px-3 rounded-xl bg-[#12101B] dark:bg-[#D4FF33] text-white dark:text-[#12101B] text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-sm transition active:scale-95 cursor-pointer">
-                    <i class="ph-bold ph-download-simple text-base"></i>
-                    <span id="btnDownloadReceiptImgText">ទាញយករូប (PNG)</span>
-                </button>
-            </div>
-
-            <button type="button" onclick="openDirectTelegramChat()" class="w-full py-2.5 px-4 rounded-xl bg-[#229ED9] hover:bg-[#1c8ec4] text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-sm transition active:scale-95 cursor-pointer">
-                <i class="ph-fill ph-telegram-logo text-base"></i>
-                <span id="btnSendTelegramReceiptText">ផ្ញើរូបវិក្កយបត្រចូល Telegram ហាង</span>
-            </button>
-        </div>
-    </div>
-
-    <script type="module">
-        import { getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
         const SHOP_PHONE_KEY = 'shshop_pro_custom_shop_phone_v1';
         const BOT_CONFIG_KEY = 'shshop_pro_tg_bot_config_v1';
         const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'shshop-pro-app';
@@ -8072,16 +6274,65 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         let shopPhoneNumber = localStorage.getItem(SHOP_PHONE_KEY) || document.body.getAttribute('data-shop-phone') || '012 888 999 / 096 888 9999';
         let latestCustomerCanvas = null;
         let latestOwnerBotCanvas = null;
-        let activePreviewType = 'customer'; // 'customer' or 'owner'
-        let latestOrderCode = "SH-99482";
+        let activePreviewType = 'customer';
+        let latestOrderCode = 'SH-' + Math.floor(100000 + Math.random() * 900000);
+        let lastSentOrderSignature = '';
 
-        // Detect if website is currently in English or Khmer
         function isWebsiteEnglish() {
             const labelEl = document.getElementById('langLabel');
             return Boolean(labelEl && labelEl.textContent.trim() === 'ខ្មែរ');
         }
 
-        // Sync Modal UI Text with Current Website Language (Khmer / English)
+        // Automatically scan all localStorage & DOM inputs to find your existing Telegram Bot Token & Chat ID
+        function getTelegramBotCredentials() {
+            let botToken = '';
+            let chatId = '';
+
+            // 1. Check our saved key
+            try {
+                const saved = JSON.parse(localStorage.getItem(BOT_CONFIG_KEY) || '{}');
+                if (saved.botToken) botToken = saved.botToken;
+                if (saved.chatId) chatId = saved.chatId;
+            } catch (e) {}
+
+            // 2. Scan ALL localStorage keys in your app for any saved botToken / chatId
+            if (!botToken || !chatId) {
+                try {
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const k = localStorage.key(i);
+                        const rawVal = localStorage.getItem(k) || '';
+                        if (rawVal.includes('{')) {
+                            try {
+                                const obj = JSON.parse(rawVal);
+                                const tok = obj.botToken || obj.telegramBotToken || obj.token || obj.tgBotToken;
+                                const cid = obj.chatId || obj.telegramChatId || obj.tgChatId || obj.ownerChatId;
+                                if (tok && !botToken) botToken = String(tok);
+                                if (cid && !chatId) chatId = String(cid);
+                            } catch (e) {}
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            // 3. Check all possible DOM input fields in your Telegram Settings modal
+            const possibleTokenIds = ['rcptBotTokenInput', 'tgBotTokenInput', 'botTokenInput', 'telegramBotToken', 'adminBotToken'];
+            const possibleChatIds = ['rcptBotChatIdInput', 'tgChatIdInput', 'chatIdInput', 'telegramChatId', 'adminChatId'];
+
+            for (const id of possibleTokenIds) {
+                const val = document.getElementById(id)?.value?.trim();
+                if (val && val.includes(':')) { botToken = val; break; }
+            }
+            for (const id of possibleChatIds) {
+                const val = document.getElementById(id)?.value?.trim();
+                if (val) { chatId = val; break; }
+            }
+
+            return {
+                botToken: (botToken || '').trim(),
+                chatId: (chatId || '').trim()
+            };
+        }
+
         function syncReceiptModalLanguage() {
             const isEn = isWebsiteEnglish();
             const isOwnerUnlocked = !document.getElementById('adminControlsGroup')?.classList.contains('hidden');
@@ -8107,12 +6358,11 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 const botCfg = getTelegramBotCredentials();
                 const tokInp = document.getElementById('rcptBotTokenInput');
                 const chatInp = document.getElementById('rcptBotChatIdInput');
-                if (tokInp && !tokInp.value) tokInp.value = botCfg.botToken;
-                if (chatInp && !chatInp.value) chatInp.value = botCfg.chatId;
+                if (tokInp && !tokInp.value && botCfg.botToken) tokInp.value = botCfg.botToken;
+                if (chatInp && !chatInp.value && botCfg.chatId) chatInp.value = botCfg.chatId;
             }
         }
 
-        // Save Customizable Shop Phone Number (Local + DOM + Firebase Cloud)
         window.saveReceiptShopPhone = async function() {
             const inp = document.getElementById('rcptShopPhoneInput');
             const clean = (inp?.value || '').trim() || '012 888 999';
@@ -8120,7 +6370,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             try { localStorage.setItem(SHOP_PHONE_KEY, clean); } catch (e) {}
             document.body.setAttribute('data-shop-phone', clean);
 
-            // Re-render both receipts immediately so Owner sees the new phone number
             renderBothReceiptsAndShowPreview(false);
 
             try {
@@ -8138,29 +6387,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             }
         };
 
-        // Read Telegram Bot Token & Chat ID (Automatically checks existing page inputs or saved config)
-        function getTelegramBotCredentials() {
-            let saved = {};
-            try {
-                saved = JSON.parse(localStorage.getItem(BOT_CONFIG_KEY) || '{}');
-            } catch (e) {}
-
-            const domToken = document.getElementById('tgBotTokenInput')?.value
-                || document.getElementById('botTokenInput')?.value
-                || document.getElementById('telegramBotToken')?.value
-                || saved.botToken || '';
-
-            const domChatId = document.getElementById('tgChatIdInput')?.value
-                || document.getElementById('chatIdInput')?.value
-                || document.getElementById('telegramChatId')?.value
-                || saved.chatId || '';
-
-            return {
-                botToken: domToken.trim(),
-                chatId: domChatId.trim()
-            };
-        }
-
         window.saveReceiptBotConfig = async function() {
             const botToken = (document.getElementById('rcptBotTokenInput')?.value || '').trim();
             const chatId = (document.getElementById('rcptBotChatIdInput')?.value || '').trim();
@@ -8177,11 +6403,10 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 );
             } catch (e) {}
             if (typeof window.showToast === 'function') {
-                window.showToast("បានរក្សាទុក Telegram Bot សម្រាប់ទទួលវិក្កយបត្រ ✓");
+                window.showToast("បានរក្សាទុក Telegram Bot សម្រាប់ទទួលរូបវិក្កយបត្រ ✓");
             }
         };
 
-        // Listen for Cloud updates to Shop Phone & Bot Config
         setTimeout(() => {
             try {
                 const app = getApp();
@@ -8198,6 +6423,15 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                             localStorage.setItem(BOT_CONFIG_KEY, JSON.stringify({
                                 botToken: data.receiptBotToken || '',
                                 chatId: data.receiptBotChatId || ''
+                            }));
+                        }
+                        // Also capture botToken/chatId if your main app stored them in storeMeta under another field
+                        const cloudTok = data.telegramBotToken || data.botToken || data.tgBotToken;
+                        const cloudChat = data.telegramChatId || data.chatId || data.tgChatId;
+                        if (cloudTok && cloudChat && !data.receiptBotToken) {
+                            localStorage.setItem(BOT_CONFIG_KEY, JSON.stringify({
+                                botToken: cloudTok,
+                                chatId: cloudChat
                             }));
                         }
                     }
@@ -8280,9 +6514,25 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             return items;
         }
 
-        // ============================================================================
+        function buildOrderMeta() {
+            const isEn = isWebsiteEnglish();
+            const custName = (document.getElementById('custName')?.value || '').trim() || (isEn ? 'Walk-in / Telegram Customer' : 'អតិថិជនទូទៅ (Telegram)');
+            const custPhone = (document.getElementById('custPhone')?.value || '').trim() || (isEn ? 'Not Provided' : 'មិនបានបញ្ជាក់លេខទូរស័ព្ទ');
+            const custAddress = (document.getElementById('custAddress')?.value || '').trim() || (isEn ? 'Store Pickup / Telegram Location' : 'ទទួលនៅហាង ឬផ្ញើទីតាំងតាម Telegram');
+            const custNote = (document.getElementById('custNote')?.value || '').trim() || (isEn ? '100% Official Store Warranty' : 'ធានាទំនិញសុទ្ធ 100% ពីហាង');
+
+            const rate = Number(window.KHR_RATE || 4050);
+            const fmtUsd = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const fmtKhr = (usd) => (Math.round((Number(usd || 0) * rate) / 100) * 100).toLocaleString('en-US') + ' ៛';
+
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+            return { custName, custPhone, custAddress, custNote, rate, fmtUsd, fmtKhr, dateStr, timeStr };
+        }
+
         // DESIGN 1: CUSTOMER RECEIPT IMAGE (Bento-Ticket Style, NO KHQR, Language-Aware)
-        // ============================================================================
         function buildCustomerReceiptCanvas(items, orderMeta) {
             const isEn = isWebsiteEnglish();
             const { custName, custPhone, custAddress, custNote, rate, fmtUsd, fmtKhr, dateStr, timeStr } = orderMeta;
@@ -8296,7 +6546,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             canvas.height = canvasH;
             const ctx = canvas.getContext('2d');
 
-            // Studio Gradient Backdrop
             const bgGrad = ctx.createLinearGradient(0, 0, canvasW, canvasH);
             bgGrad.addColorStop(0, '#1E1B4B');
             bgGrad.addColorStop(0.5, '#312E81');
@@ -8315,7 +6564,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             ctx.fill();
             ctx.restore();
 
-            // Top Header (#12101B)
             const headerH = 180;
             ctx.save();
             drawRoundedRect(ctx, cardX, cardY, cardW, headerH, { tl: 36, tr: 36, br: 0, bl: 0 });
@@ -8326,10 +6574,8 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             ctx.fill();
             ctx.restore();
 
-            // Brand Logo + Shop Name
             drawRoundedRect(ctx, cardX + 36, cardY + 30, 68, 68, 20);
-            ctx.fillStyle = '#D4FF33';
-            ctx.fill();
+            ctx.fillStyle = '#D4FF33'; ctx.fill();
             ctx.fillStyle = '#12101B';
             ctx.textAlign = 'center';
             ctx.font = '900 22px "Kantumruy Pro", sans-serif';
@@ -8347,18 +6593,13 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             ctx.font = '700 14px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
             ctx.fillText(isEn ? 'SEYHA Modern Mobile & Accessories Shop' : 'សីហា ហាងលក់ទូរស័ព្ទដៃទំនើប និងគ្រឿងបន្លាស់គ្រប់ប្រភេទ', cardX + 120, cardY + 84);
 
-            // Shop Phone Pill right in Header
             ctx.fillStyle = '#D4FF33';
             ctx.font = '800 14px "JetBrains Mono", "Kantumruy Pro", sans-serif';
             ctx.fillText(`📞 ${isEn ? 'Shop Tel:' : 'ទូរស័ព្ទហាង៖'} ${shopPhoneNumber}`, cardX + 120, cardY + 108);
 
-            // Right Header: Order Code & Date
             drawRoundedRect(ctx, cardX + cardW - 236, cardY + 30, 200, 38, 12);
-            ctx.fillStyle = 'rgba(212, 255, 51, 0.15)';
-            ctx.fill();
-            ctx.strokeStyle = '#D4FF33';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
+            ctx.fillStyle = 'rgba(212, 255, 51, 0.15)'; ctx.fill();
+            ctx.strokeStyle = '#D4FF33'; ctx.lineWidth = 1.5; ctx.stroke();
 
             ctx.textAlign = 'center';
             ctx.fillStyle = '#D4FF33';
@@ -8370,7 +6611,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             ctx.font = '700 13px "Plus Jakarta Sans", sans-serif';
             ctx.fillText(`${dateStr} • ${timeStr}`, cardX + cardW - 36, cardY + 94);
 
-            // Header Sub-bar
             ctx.fillStyle = '#1E1B4B';
             ctx.fillRect(cardX, cardY + 128, cardW, 52);
             ctx.textAlign = 'left';
@@ -8383,11 +6623,9 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             ctx.font = '700 13px "JetBrains Mono", monospace';
             ctx.fillText(`${isEn ? 'RATE' : 'អត្រាប្តូរប្រាក់'}: $1 = ${rate.toLocaleString()} ៛`, cardX + cardW - 36, cardY + 160);
 
-            // Customer Info Bento Grid
             let curY = cardY + headerH + 22;
             const bentoW = (cardW - 72 - 16) / 2;
 
-            // Box 1: Customer Name
             drawRoundedRect(ctx, cardX + 36, curY, bentoW, 76, 18);
             ctx.fillStyle = '#FFFFFF'; ctx.fill();
             ctx.strokeStyle = '#E2E8F0'; ctx.lineWidth = 1.5; ctx.stroke();
@@ -8399,7 +6637,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             ctx.font = '800 18px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
             ctx.fillText(custName.slice(0, 26), cardX + 54, curY + 55);
 
-            // Box 2: Customer Phone
             const rightBentoX = cardX + 36 + bentoW + 16;
             drawRoundedRect(ctx, rightBentoX, curY, bentoW, 76, 18);
             ctx.fillStyle = '#FFFFFF'; ctx.fill();
@@ -8413,7 +6650,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
 
             curY += 90;
 
-            // Box 3: Delivery Address
             drawRoundedRect(ctx, cardX + 36, curY, cardW - 72, 72, 18);
             ctx.fillStyle = '#FFFFFF'; ctx.fill();
             ctx.strokeStyle = '#E2E8F0'; ctx.stroke();
@@ -8426,7 +6662,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
 
             curY += 86;
 
-            // Box 4: Order Note
             drawRoundedRect(ctx, cardX + 36, curY, cardW - 72, 62, 16);
             ctx.fillStyle = '#EEF2FF'; ctx.fill();
             ctx.strokeStyle = '#C7D2FE'; ctx.stroke();
@@ -8437,7 +6672,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             ctx.font = '600 15px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
             ctx.fillText(custNote.slice(0, 62), cardX + 54, curY + 46);
 
-            // Items Section Header
             curY += 84;
             ctx.textAlign = 'left';
             ctx.fillStyle = '#475569';
@@ -8516,7 +6750,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 curY += itemCardH;
             });
 
-            // Perforated Divider
             curY += 6;
             ctx.save();
             ctx.setLineDash([10, 8]);
@@ -8528,12 +6761,10 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             ctx.stroke();
             ctx.restore();
 
-            // Dark Summary Box
             curY += 20;
             const totalSavedUsd = Math.max(0, totalOriginalUsd - grandTotalUsd);
             drawRoundedRect(ctx, cardX + 36, curY, cardW - 72, 142, 24);
-            ctx.fillStyle = '#12101B';
-            ctx.fill();
+            ctx.fillStyle = '#12101B'; ctx.fill();
 
             ctx.textAlign = 'left';
             ctx.fillStyle = '#94A3B8';
@@ -8565,14 +6796,10 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             ctx.font = '800 21px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
             ctx.fillText(`≈ ${fmtKhr(grandTotalUsd)}`, cardX + cardW - 60, curY + 112);
 
-            // Clean Footer Contact & Warranty Banner (NO KHQR Scan Box)
             curY += 162;
             drawRoundedRect(ctx, cardX + 36, curY, cardW - 245, 86, 18);
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fill();
-            ctx.strokeStyle = '#E2E8F0';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
+            ctx.fillStyle = '#FFFFFF'; ctx.fill();
+            ctx.strokeStyle = '#E2E8F0'; ctx.lineWidth = 1.5; ctx.stroke();
 
             ctx.textAlign = 'left';
             ctx.fillStyle = '#0F172A';
@@ -8587,14 +6814,11 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             ctx.font = '600 12px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
             ctx.fillText(isEn ? 'Please send this receipt to our Telegram to confirm delivery.' : 'សូមផ្ញើរូបវិក្កយបត្រនេះចូល Telegram ហាងដើម្បីបញ្ជាក់ការដឹកជញ្ជូន', cardX + 54, curY + 75);
 
-            // Verified Stamp on Right
             ctx.save();
             ctx.translate(cardX + cardW - 115, curY + 44);
             ctx.rotate(-0.1);
             drawRoundedRect(ctx, -82, -32, 164, 64, 14);
-            ctx.strokeStyle = '#10B981';
-            ctx.lineWidth = 3;
-            ctx.stroke();
+            ctx.strokeStyle = '#10B981'; ctx.lineWidth = 3; ctx.stroke();
             ctx.textAlign = 'center';
             ctx.fillStyle = '#059669';
             ctx.font = '900 13px "Plus Jakarta Sans", sans-serif';
@@ -8606,11 +6830,9 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             return canvas;
         }
 
-        // ============================================================================
         // DESIGN 2: OWNER TELEGRAM BOT DISPATCH CARD (Dark Merchant Dashboard Layout)
-        // ============================================================================
         function buildOwnerTelegramOrderCanvas(items, orderMeta) {
-            const { custName, custPhone, custAddress, custNote, rate, fmtUsd, fmtKhr, dateStr, timeStr } = orderMeta;
+            const { custName, custPhone, custAddress, custNote, fmtUsd, fmtKhr, dateStr, timeStr } = orderMeta;
 
             const rowH = 92;
             const canvasW = 860;
@@ -8621,24 +6843,18 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             canvas.height = canvasH;
             const ctx = canvas.getContext('2d');
 
-            // Dark Obsidian Merchant Dashboard Background
             ctx.fillStyle = '#090A0F';
             ctx.fillRect(0, 0, canvasW, canvasH);
 
             const pad = 32;
             const boxW = canvasW - (pad * 2);
 
-            // 1. Top Neon Alert Banner ("NEW CUSTOMER ORDER FOR OWNER")
             drawRoundedRect(ctx, pad, pad, boxW, 118, 24);
-            ctx.fillStyle = '#181826';
-            ctx.fill();
-            ctx.strokeStyle = '#D4FF33';
-            ctx.lineWidth = 2.5;
-            ctx.stroke();
+            ctx.fillStyle = '#181826'; ctx.fill();
+            ctx.strokeStyle = '#D4FF33'; ctx.lineWidth = 2.5; ctx.stroke();
 
             drawRoundedRect(ctx, pad + 24, pad + 22, 190, 34, 10);
-            ctx.fillStyle = '#D4FF33';
-            ctx.fill();
+            ctx.fillStyle = '#D4FF33'; ctx.fill();
             ctx.textAlign = 'center';
             ctx.fillStyle = '#090A0F';
             ctx.font = '900 14px "Plus Jakarta Sans", sans-serif';
@@ -8657,22 +6873,14 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             ctx.font = '800 15px "Kantumruy Pro", sans-serif';
             ctx.fillText(`ចំនួនសរុប៖ ${items.reduce((s, i) => s + i.qty, 0)} ទំនិញ`, pad + boxW - 24, pad + 90);
 
-            // 2. Giant High-Visibility Customer Contact & Delivery Dispatch Panel
             let curY = pad + 138;
             drawRoundedRect(ctx, pad, curY, boxW, 220, 24);
-            ctx.fillStyle = '#12131F';
-            ctx.fill();
-            ctx.strokeStyle = '#312E81';
-            ctx.lineWidth = 2;
-            ctx.stroke();
+            ctx.fillStyle = '#12131F'; ctx.fill();
+            ctx.strokeStyle = '#312E81'; ctx.lineWidth = 2; ctx.stroke();
 
-            // Customer Phone Highlight Strip (Easy for Owner to Call Immediately)
             drawRoundedRect(ctx, pad + 20, curY + 20, boxW - 40, 66, 16);
-            ctx.fillStyle = '#064E3B';
-            ctx.fill();
-            ctx.strokeStyle = '#10B981';
-            ctx.lineWidth = 2;
-            ctx.stroke();
+            ctx.fillStyle = '#064E3B'; ctx.fill();
+            ctx.strokeStyle = '#10B981'; ctx.lineWidth = 2; ctx.stroke();
 
             ctx.textAlign = 'left';
             ctx.fillStyle = '#A7F3D0';
@@ -8687,7 +6895,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             ctx.font = '800 18px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
             ctx.fillText(`👤 ភ្ញៀវ៖ ${custName.slice(0, 26)}`, pad + boxW - 38, curY + 62);
 
-            // Delivery Address & Notes inside Dispatch Box
             ctx.textAlign = 'left';
             ctx.fillStyle = '#FBBF24';
             ctx.font = '800 14px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
@@ -8703,7 +6910,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             ctx.font = '600 16px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
             ctx.fillText(custNote.slice(0, 65), pad + 26, curY + 204);
 
-            // 3. Owner Packing Checklist Table
             curY += 242;
             ctx.fillStyle = '#94A3B8';
             ctx.font = '800 13px "Plus Jakarta Sans", "Kantumruy Pro", sans-serif';
@@ -8721,38 +6927,28 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 grandTotalUsd += item.lineTotalUsd;
 
                 drawRoundedRect(ctx, pad, curY, boxW, 80, 16);
-                ctx.fillStyle = '#161826';
-                ctx.fill();
-                ctx.strokeStyle = '#262940';
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
+                ctx.fillStyle = '#161826'; ctx.fill();
+                ctx.strokeStyle = '#262940'; ctx.lineWidth = 1.5; ctx.stroke();
 
-                // Checkbox square for owner packing
                 drawRoundedRect(ctx, pad + 20, curY + 22, 36, 36, 8);
-                ctx.strokeStyle = '#D4FF33';
-                ctx.lineWidth = 2.5;
-                ctx.stroke();
+                ctx.strokeStyle = '#D4FF33'; ctx.lineWidth = 2.5; ctx.stroke();
                 ctx.textAlign = 'center';
                 ctx.fillStyle = '#D4FF33';
                 ctx.font = '900 14px "JetBrains Mono", monospace';
                 ctx.fillText(String(idx + 1), pad + 38, curY + 45);
 
-                // Item Name
                 ctx.textAlign = 'left';
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font = '800 19px "Plus Jakarta Sans", "Kantumruy Pro", sans-serif';
                 ctx.fillText(item.name.slice(0, 32), pad + 72, curY + 36);
 
-                // Unit & Discount breakdown
                 ctx.fillStyle = '#94A3B8';
                 ctx.font = '600 14px "JetBrains Mono", "Kantumruy Pro", sans-serif';
                 const discText = item.discountPct > 0 ? ` (បញ្ចុះ -${item.discountPct}% ពីតម្លៃដើម ${fmtUsd(item.unitOrigPrice)})` : '';
                 ctx.fillText(`តម្លៃរាយ៖ ${fmtUsd(item.unitSalePrice)}${discText}`, pad + 72, curY + 62);
 
-                // Big Quantity Badge + Line Total on Right
                 drawRoundedRect(ctx, pad + boxW - 250, curY + 20, 82, 40, 10);
-                ctx.fillStyle = '#4F46E5';
-                ctx.fill();
+                ctx.fillStyle = '#4F46E5'; ctx.fill();
                 ctx.textAlign = 'center';
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font = '900 18px "JetBrains Mono", monospace';
@@ -8769,12 +6965,10 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 curY += rowH;
             });
 
-            // 4. Bottom Amount to Collect Summary Banner for Owner
             curY += 12;
             const totalSaved = Math.max(0, totalOriginalUsd - grandTotalUsd);
             drawRoundedRect(ctx, pad, curY, boxW, 148, 24);
-            ctx.fillStyle = '#D4FF33';
-            ctx.fill();
+            ctx.fillStyle = '#D4FF33'; ctx.fill();
 
             ctx.textAlign = 'left';
             ctx.fillStyle = '#090A0F';
@@ -8799,10 +6993,28 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             return canvas;
         }
 
-        // Automatically Send the Owner Dispatch Card Image + Caption to Your Telegram Bot
-        async function sendOwnerOrderCardToTelegramBot(ownerCanvas, items, orderMeta) {
-            const { botToken, chatId } = getTelegramBotCredentials();
-            if (!botToken || !chatId || !ownerCanvas) return;
+        // Send the Owner Dispatch Card Image via /sendPhoto to your Telegram Bot
+        const nativeFetch = window.fetch.bind(window);
+
+        async function sendOwnerOrderCardToTelegramBot(explicitToken = '', explicitChatId = '') {
+            const items = getCurrentCartItemsWithDiscounts();
+            if (items.length === 0) return null;
+
+            const creds = getTelegramBotCredentials();
+            const botToken = explicitToken || creds.botToken;
+            const chatId = explicitChatId || creds.chatId;
+            if (!botToken || !chatId) return null;
+
+            const orderMeta = buildOrderMeta();
+            const signature = `${orderMeta.custPhone}|${items.map(i => `${i.name}:${i.qty}`).join(',')}`;
+            if (signature === lastSentOrderSignature && Date.now() - (window.__lastBotPhotoTime || 0) < 4000) {
+                return null; // Prevent duplicate double-send within 4 seconds
+            }
+            lastSentOrderSignature = signature;
+            window.__lastBotPhotoTime = Date.now();
+
+            const ownerCanvas = buildOwnerTelegramOrderCanvas(items, orderMeta);
+            latestOwnerBotCanvas = ownerCanvas;
 
             const { custName, custPhone, custAddress, custNote, fmtUsd, fmtKhr } = orderMeta;
             const grandTotalUsd = items.reduce((sum, i) => sum + i.lineTotalUsd, 0);
@@ -8812,7 +7024,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             ).join('\n');
 
             const caption =
-                `🔔 <b>មានការកម្មង់ទំនិញថ្មី (#${latestOrderCode})</b>\n` +
+                `🔔 <b>ប័ណ្ណកម្មង់ទំនិញថ្មី (#${latestOrderCode})</b>\n` +
                 `━━━━━━━━━━━━━━━━━━\n` +
                 `👤 <b>ឈ្មោះភ្ញៀវ៖</b> ${custName}\n` +
                 `📞 <b>លេខទូរស័ព្ទ៖</b> <code>${custPhone}</code>\n` +
@@ -8823,22 +7035,70 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 `━━━━━━━━━━━━━━━━━━\n` +
                 `💰 <b>សរុបត្រូវទូទាត់៖ ${fmtUsd(grandTotalUsd)} (≈ ${fmtKhr(grandTotalUsd)})</b>`;
 
-            ownerCanvas.toBlob(async (blob) => {
-                if (!blob) return;
-                try {
-                    const formData = new FormData();
-                    formData.append('chat_id', chatId);
-                    formData.append('photo', blob, `Owner-Order-${latestOrderCode}.png`);
-                    formData.append('caption', caption);
-                    formData.append('parse_mode', 'HTML');
+            return new Promise((resolve) => {
+                ownerCanvas.toBlob(async (blob) => {
+                    if (!blob) { resolve(null); return; }
+                    try {
+                        const formData = new FormData();
+                        formData.append('chat_id', chatId);
+                        formData.append('photo', blob, `Owner-Order-${latestOrderCode}.png`);
+                        formData.append('caption', caption);
+                        formData.append('parse_mode', 'HTML');
 
-                    await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-                        method: 'POST',
-                        body: formData
-                    });
-                } catch (e) {}
-            }, 'image/png');
+                        const resp = await nativeFetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        resolve(resp);
+                    } catch (e) {
+                        resolve(null);
+                    }
+                }, 'image/png');
+            });
         }
+
+        // KEY FIX: Intercept any plain-text `/sendMessage` call to `api.telegram.org` and replace it with `/sendPhoto`!
+        window.fetch = async function(input, init) {
+            const urlStr = typeof input === 'string' ? input : (input?.url || '');
+            const match = urlStr.match(/api\.telegram\.org\/bot([^/]+)\/sendMessage/i);
+
+            if (match && match[1]) {
+                const interceptedToken = match[1];
+                let interceptedChatId = '';
+
+                try {
+                    if (init && init.body) {
+                        if (typeof init.body === 'string') {
+                            const parsed = JSON.parse(init.body);
+                            interceptedChatId = String(parsed.chat_id || '');
+                        } else if (init.body instanceof FormData) {
+                            interceptedChatId = String(init.body.get('chat_id') || '');
+                        }
+                    }
+                } catch (e) {}
+
+                // Save these working credentials automatically so you never have to re-enter them!
+                if (interceptedToken && interceptedChatId) {
+                    try {
+                        localStorage.setItem(BOT_CONFIG_KEY, JSON.stringify({
+                            botToken: interceptedToken,
+                            chatId: interceptedChatId
+                        }));
+                    } catch (e) {}
+                }
+
+                // If there are items in the cart, send the Owner Dispatch Receipt IMAGE (/sendPhoto) instead of text!
+                const items = getCurrentCartItemsWithDiscounts();
+                if (items.length > 0) {
+                    const photoResp = await sendOwnerOrderCardToTelegramBot(interceptedToken, interceptedChatId);
+                    if (photoResp && photoResp.ok) {
+                        return photoResp;
+                    }
+                }
+            }
+
+            return nativeFetch(input, init);
+        };
 
         function renderBothReceiptsAndShowPreview(sendToBot = false) {
             const items = getCurrentCartItemsWithDiscounts();
@@ -8849,32 +7109,15 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 return;
             }
 
-            const isEn = isWebsiteEnglish();
-            const custName = (document.getElementById('custName')?.value || '').trim() || (isEn ? 'Walk-in / Telegram Customer' : 'អតិថិជនទូទៅ (Telegram)');
-            const custPhone = (document.getElementById('custPhone')?.value || '').trim() || (isEn ? 'Not Provided' : 'មិនបានបញ្ជាក់លេខទូរស័ព្ទ');
-            const custAddress = (document.getElementById('custAddress')?.value || '').trim() || (isEn ? 'Store Pickup / Telegram Location' : 'ទទួលនៅហាង ឬផ្ញើទីតាំងតាម Telegram');
-            const custNote = (document.getElementById('custNote')?.value || '').trim() || (isEn ? '100% Official Store Warranty' : 'ធានាទំនិញសុទ្ធ 100% ពីហាង');
-
-            const rate = Number(window.KHR_RATE || 4050);
-            const fmtUsd = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const fmtKhr = (usd) => (Math.round((Number(usd || 0) * rate) / 100) * 100).toLocaleString('en-US') + ' ៛';
-
-            const now = new Date();
-            const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-
-            const orderMeta = { custName, custPhone, custAddress, custNote, rate, fmtUsd, fmtKhr, dateStr, timeStr };
-
-            // 1. Build Customer Receipt (No KHQR, Language-Matched)
+            const orderMeta = buildOrderMeta();
             latestCustomerCanvas = buildCustomerReceiptCanvas(items, orderMeta);
-            // 2. Build Owner Telegram Dispatch Card (Dark Command-Center Design)
             latestOwnerBotCanvas = buildOwnerTelegramOrderCanvas(items, orderMeta);
 
             syncReceiptModalLanguage();
             updateDisplayedPreviewCanvas();
 
             if (sendToBot) {
-                sendOwnerOrderCardToTelegramBot(latestOwnerBotCanvas, items, orderMeta);
+                sendOwnerOrderCardToTelegramBot();
             }
         }
 
@@ -8944,7 +7187,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             }, 'image/png');
         };
 
-        // Hook into "ចម្លងអត្ថបទវិក្កយបត្រ (Copy)" AND Telegram Order Submit Buttons
         function hookOrderAndCopyButtons() {
             const origCopyFn = window.copyInvoiceToClipboard;
             window.copyInvoiceToClipboard = function() {
@@ -8953,7 +7195,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 }
                 latestOrderCode = 'SH-' + Math.floor(100000 + Math.random() * 900000);
                 activePreviewType = 'customer';
-                renderBothReceiptsAndShowPreview(true); // Generates both & sends Owner Dispatch Card to Telegram Bot!
+                renderBothReceiptsAndShowPreview(true);
 
                 const modal = document.getElementById('modernReceiptModal');
                 if (modal) {
