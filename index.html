@@ -7395,4 +7395,472 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             setTimeout(removeSortAndViewControls, 50);
         })();
     </script>
+	<!-- Product Discount % Customizer: Top-Right "-40%" Badge + Highlighted Sale Price & Strikethrough Normal Price -->
+    <style>
+        /* Glowing Top-Right Discount % Badge */
+        .sh-discount-corner-badge {
+            position: absolute;
+            top: 0.65rem;
+            right: 0.65rem;
+            z-index: 25;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.2rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            background: linear-gradient(135deg, #E1232E 0%, #be123c 100%);
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: 0.02em;
+            box-shadow: 0 6px 16px -3px rgba(225, 35, 46, 0.55);
+            border: 1.5px solid rgba(255, 255, 255, 0.85);
+            transform: translateZ(0);
+            animation: discountPulse 2.8s ease-in-out infinite;
+        }
+        @keyframes discountPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        /* Highlighted Discount Price + Small Strikethrough Original Price */
+        .sh-sale-price-highlight {
+            color: #E1232E;
+            font-weight: 900;
+        }
+        .dark .sh-sale-price-highlight {
+            color: #D4FF33;
+        }
+        .sh-normal-price-cut {
+            text-decoration: line-through;
+            text-decoration-thickness: 1.8px;
+            text-decoration-color: #ef4444;
+            color: #94a3b8;
+            font-size: 0.78em;
+            font-weight: 700;
+            margin-left: 0.35rem;
+        }
+    </style>
+
+    <script type="module">
+        import { getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const DISCOUNT_STORAGE_KEY = 'shshop_pro_product_discounts_v1';
+        const CATALOG_STORAGE_KEY = 'shshop_pro_saved_catalog_v1';
+        const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'shshop-pro-app';
+
+        // Map of { [productId]: { percent: 40, originalPrice: 100 } }
+        let productDiscounts = {};
+        // Base original prices before discount so we never lose the original price
+        let originalPriceBackup = {};
+
+        function loadSavedDiscounts() {
+            const bodyAttr = document.body.getAttribute('data-product-discounts');
+            if (bodyAttr) {
+                try {
+                    productDiscounts = JSON.parse(bodyAttr) || {};
+                } catch (e) {}
+            }
+            try {
+                const raw = localStorage.getItem(DISCOUNT_STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed && typeof parsed === 'object') {
+                        productDiscounts = { ...productDiscounts, ...parsed };
+                    }
+                }
+            } catch (e) {}
+        }
+
+        function saveDiscountsLocalAndDom() {
+            try {
+                localStorage.setItem(DISCOUNT_STORAGE_KEY, JSON.stringify(productDiscounts));
+            } catch (e) {}
+            document.body.setAttribute('data-product-discounts', JSON.stringify(productDiscounts));
+        }
+
+        async function syncDiscountsToCloud() {
+            saveDiscountsLocalAndDom();
+            try {
+                const app = getApp();
+                const db = getFirestore(app);
+                await setDoc(
+                    doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'storeMeta'),
+                    { productDiscountsMap: productDiscounts },
+                    { merge: true }
+                );
+            } catch (e) {}
+        }
+
+        // Format USD helper
+        function fmtUsd(num) {
+            const n = Number(num) || 0;
+            return '$' + (n % 1 === 0 ? n.toFixed(2) : n.toFixed(2));
+        }
+
+        // Format KHR helper (uses exchange rate 4050 or window rate)
+        function fmtKhr(usdAmount) {
+            const rate = Number(window.KHR_RATE || 4050);
+            const khr = Math.round((Number(usdAmount) || 0) * rate / 100) * 100;
+            return khr.toLocaleString('en-US') + ' ៛';
+        }
+
+        // Calculate discounted price from original price and %
+        function calcDiscountedPrice(originalPrice, percent) {
+            const orig = Number(originalPrice) || 0;
+            const pct = Math.min(99, Math.max(0, Number(percent) || 0));
+            if (pct <= 0) return orig;
+            return Number((orig * (1 - pct / 100)).toFixed(2));
+        }
+
+        // 1. Inject Discount % Field into Owner's "Add / Edit Product" Modal
+        function injectDiscountFieldIntoProductModal() {
+            const priceInput = document.getElementById('prodPriceInput');
+            if (!priceInput || document.getElementById('prodDiscountPercentInput')) return;
+
+            const priceWrapper = priceInput.parentElement;
+            if (!priceWrapper) return;
+
+            const discountBlock = document.createElement('div');
+            discountBlock.className = "col-span-1 sm:col-span-2 p-3.5 rounded-2xl bg-rose-50/70 dark:bg-rose-950/20 border border-rose-200/80 dark:border-rose-800/50 space-y-2.5";
+            discountBlock.innerHTML = `
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <label class="text-xs font-extrabold text-rose-700 dark:text-rose-300 flex items-center gap-1.5">
+                        <i class="ph-fill ph-seal-percent text-base"></i>
+                        <span>បញ្ចុះតម្លៃ % (Discount % Customizer)</span>
+                    </label>
+                    <span id="liveDiscountPreviewText" class="text-xs font-mono font-extrabold text-slate-700 dark:text-slate-200">
+                        មិនមានបញ្ចុះតម្លៃ (0%)
+                    </span>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="relative w-32">
+                        <input type="number" id="prodDiscountPercentInput" min="0" max="95" step="1" value="0"
+                               oninput="updateModalDiscountLivePreview()"
+                               class="w-full pl-3 pr-8 py-2 bg-white dark:bg-slate-800 border border-rose-300 dark:border-rose-700 rounded-xl text-sm font-black text-rose-600 dark:text-[#D4FF33] focus:outline-none">
+                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
+                    </div>
+
+                    <!-- Quick Preset % Buttons -->
+                    <div class="flex flex-wrap items-center gap-1">
+                        ${[0, 10, 15, 20, 30, 40, 50].map(pct => `
+                            <button type="button" onclick="setModalDiscountPreset(${pct})"
+                                    class="px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold transition cursor-pointer ${pct === 0 ? 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300' : 'bg-rose-600/10 hover:bg-rose-600 hover:text-white text-rose-600 dark:text-rose-300 border border-rose-500/20'}">
+                                ${pct === 0 ? 'បិទ (0%)' : `-${pct}%`}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            priceWrapper.parentNode.insertBefore(discountBlock, priceWrapper.nextSibling);
+            priceInput.addEventListener('input', () => window.updateModalDiscountLivePreview());
+        }
+
+        window.setModalDiscountPreset = function(pct) {
+            const inp = document.getElementById('prodDiscountPercentInput');
+            if (inp) {
+                inp.value = pct;
+                window.updateModalDiscountLivePreview();
+            }
+        };
+
+        window.updateModalDiscountLivePreview = function() {
+            const priceInp = document.getElementById('prodPriceInput');
+            const discInp = document.getElementById('prodDiscountPercentInput');
+            const previewEl = document.getElementById('liveDiscountPreviewText');
+            if (!priceInp || !discInp || !previewEl) return;
+
+            const normalPrice = Number(priceInp.value) || 0;
+            const pct = Math.min(95, Math.max(0, Number(discInp.value) || 0));
+
+            if (pct > 0 && normalPrice > 0) {
+                const salePrice = calcDiscountedPrice(normalPrice, pct);
+                previewEl.innerHTML = `តម្លៃដើម <span class="line-through text-slate-400">${fmtUsd(normalPrice)}</span> ➔ តម្លៃលក់ថ្មី <span class="text-rose-600 dark:text-[#D4FF33] font-black text-sm">${fmtUsd(salePrice)} (-${pct}%)</span>`;
+            } else {
+                previewEl.textContent = "មិនមានបញ្ចុះតម្លៃ (0%)";
+            }
+        };
+
+        // 2. Quick Owner Prompt to set Discount % directly from any Product Card
+        window.openQuickDiscountPrompt = async function(prodId, event) {
+            if (event) event.stopPropagation();
+            const currentEntry = productDiscounts[prodId] || { percent: 0 };
+            const currentPct = currentEntry.percent || 0;
+
+            const inputStr = prompt(
+                `កំណត់ភាគរយបញ្ចុះតម្លៃ (Discount %) សម្រាប់ទំនិញនេះ (0 ដល់ 95)៖\nឧទាហរណ៍៖ វាយលេខ 40 សម្រាប់បញ្ចុះតម្លៃ 40% (ឬវាយ 0 ដើម្បីដកការបញ្ចុះតម្លៃ)`,
+                String(currentPct)
+            );
+            if (inputStr === null) return;
+
+            const newPct = Math.min(95, Math.max(0, parseInt(inputStr.replace(/[^0-9]/g, ''), 10) || 0));
+            applyProductDiscountChange(prodId, newPct);
+        };
+
+        // Update catalog product price so Cart & KHQR automatically use the discounted price, while saving originalPrice
+        function applyProductDiscountChange(prodId, newPct, explicitNormalPrice = null) {
+            let catalogData = null;
+            try {
+                const raw = localStorage.getItem(CATALOG_STORAGE_KEY);
+                if (raw) catalogData = JSON.parse(raw);
+            } catch (e) {}
+
+            // Determine Original Normal Price
+            let origPrice = explicitNormalPrice !== null
+                ? Number(explicitNormalPrice)
+                : (productDiscounts[prodId]?.originalPrice || originalPriceBackup[prodId] || null);
+
+            if (catalogData && Array.isArray(catalogData.products)) {
+                const item = catalogData.products.find(p => p.id === prodId);
+                if (item) {
+                    if (!origPrice) origPrice = Number(item.originalPrice || item.price);
+                    const finalSalePrice = newPct > 0 ? calcDiscountedPrice(origPrice, newPct) : origPrice;
+                    item.originalPrice = origPrice;
+                    item.discountPercent = newPct;
+                    item.price = finalSalePrice;
+                    try {
+                        localStorage.setItem(CATALOG_STORAGE_KEY, JSON.stringify(catalogData));
+                    } catch (e) {}
+                }
+            }
+
+            if (origPrice) {
+                originalPriceBackup[prodId] = origPrice;
+            }
+
+            if (newPct > 0) {
+                productDiscounts[prodId] = {
+                    percent: newPct,
+                    originalPrice: origPrice || 0
+                };
+            } else {
+                delete productDiscounts[prodId];
+            }
+
+            syncDiscountsToCloud();
+            decorateAllProductCardsWithDiscounts();
+        }
+
+        // 3. Hook into Owner "Edit Product" Modal so opening & saving a product preserves Original Price + Discount %
+        function hookProductModalOpenAndSubmit() {
+            const modal = document.getElementById('productModal');
+            const form = modal?.querySelector('form');
+            if (!form || form.dataset.discountHooked === "true") return;
+            form.dataset.discountHooked = "true";
+
+            injectDiscountFieldIntoProductModal();
+
+            // Observe when modal opens so we load the product's Original Price and Discount %
+            const observer = new MutationObserver(() => {
+                if (!modal.classList.contains('hidden')) {
+                    injectDiscountFieldIntoProductModal();
+                    const prodId = document.getElementById('prodIdInput')?.value || '';
+                    const priceInp = document.getElementById('prodPriceInput');
+                    const discInp = document.getElementById('prodDiscountPercentInput');
+
+                    if (prodId && productDiscounts[prodId]) {
+                        const saved = productDiscounts[prodId];
+                        if (priceInp && saved.originalPrice > 0) {
+                            priceInp.value = saved.originalPrice;
+                        }
+                        if (discInp) {
+                            discInp.value = saved.percent || 0;
+                        }
+                    } else if (discInp) {
+                        discInp.value = 0;
+                    }
+                    window.updateModalDiscountLivePreview();
+                }
+            });
+            observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
+
+            // Intercept form submit so `prodPriceInput` is treated as the Normal Price, and if Discount % > 0, we store both!
+            form.addEventListener('submit', () => {
+                const prodId = document.getElementById('prodIdInput')?.value || '';
+                const priceInp = document.getElementById('prodPriceInput');
+                const discInp = document.getElementById('prodDiscountPercentInput');
+                const normalPrice = Number(priceInp?.value || 0);
+                const pct = Math.min(95, Math.max(0, Number(discInp?.value || 0)));
+
+                if (normalPrice > 0 && pct > 0 && priceInp) {
+                    // Temporarily set prodPriceInput to the discounted sale price so the main app saves the sale price for Cart/KHQR
+                    const salePrice = calcDiscountedPrice(normalPrice, pct);
+                    priceInp.value = salePrice;
+
+                    setTimeout(() => {
+                        // Find newly created or edited product ID and save its discount metadata
+                        let targetId = prodId;
+                        if (!targetId) {
+                            try {
+                                const raw = localStorage.getItem(CATALOG_STORAGE_KEY);
+                                const parsed = raw ? JSON.parse(raw) : null;
+                                if (parsed?.products?.length) {
+                                    targetId = parsed.products[0].id;
+                                }
+                            } catch (e) {}
+                        }
+                        if (targetId) {
+                            applyProductDiscountChange(targetId, pct, normalPrice);
+                        }
+                    }, 120);
+                } else if (prodId && pct === 0) {
+                    setTimeout(() => {
+                        applyProductDiscountChange(prodId, 0, normalPrice);
+                    }, 120);
+                }
+            }, true);
+        }
+
+        // 4. Decorate Every Product Card (Top Picks + All Products Grid + Lightbox Popup) with:
+        //    - Top-right "-40%" badge
+        //    - Highlighted Discount Price + Small Strikethrough Normal Price next to it
+        function decorateAllProductCardsWithDiscounts() {
+            const isOwnerUnlocked = !document.getElementById('adminControlsGroup')?.classList.contains('hidden');
+
+            // Find all product cards across Top Picks (#topPicksGrid) and Main Catalog (#productsGrid)
+            const allArticles = document.querySelectorAll('#topPicksGrid article, #productsGrid article');
+
+            allArticles.forEach(card => {
+                // Find the product ID from openLightbox('prod-X') or quickAdd('prod-X')
+                const triggerEl = card.querySelector('[onclick*="openLightbox"], [onclick*="quickAdd"]');
+                const onclickStr = triggerEl?.getAttribute('onclick') || card.getAttribute('onclick') || '';
+                const match = onclickStr.match(/'([^']+)'/);
+                if (!match || !match[1]) return;
+                const prodId = match[1];
+
+                const imgContainer = card.querySelector('.aspect-square, .relative.overflow-hidden') || card.firstElementChild;
+                if (imgContainer) {
+                    imgContainer.classList.add('relative');
+                }
+
+                // Remove old injected badges before re-rendering
+                card.querySelectorAll('.sh-discount-corner-badge, .sh-owner-discount-btn').forEach(el => el.remove());
+
+                const discInfo = productDiscounts[prodId];
+                const pct = discInfo?.percent ? Number(discInfo.percent) : 0;
+
+                // Find the USD price element inside the card
+                const priceEls = Array.from(card.querySelectorAll('span, div, p')).filter(el =>
+                    el.children.length === 0 && /^\$\d+(\.\d+)?$/.test((el.textContent || '').trim())
+                );
+                const mainPriceEl = priceEls[0] || card.querySelector('[data-price-box]');
+
+                if (mainPriceEl && !originalPriceBackup[prodId]) {
+                    const parsedDomPrice = parseFloat((mainPriceEl.textContent || '').replace(/[^0-9.]/g, ''));
+                    if (!isNaN(parsedDomPrice) && parsedDomPrice > 0) {
+                        originalPriceBackup[prodId] = discInfo?.originalPrice || parsedDomPrice;
+                    }
+                }
+
+                // A. Add Top-Right Corner "-40%" Badge if discounted
+                if (pct > 0 && imgContainer) {
+                    const badge = document.createElement('div');
+                    badge.className = 'sh-discount-corner-badge';
+                    badge.innerHTML = `<i class="ph-fill ph-lightning text-[10px]"></i><span>-${pct}%</span>`;
+                    imgContainer.appendChild(badge);
+                }
+
+                // B. Owner Mode Quick "% Discount" Button on Card
+                if (isOwnerUnlocked && imgContainer) {
+                    const ownerBtn = document.createElement('button');
+                    ownerBtn.type = 'button';
+                    ownerBtn.className = 'sh-owner-discount-btn absolute bottom-2 right-2 z-30 px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-extrabold shadow-md flex items-center gap-1 cursor-pointer';
+                    ownerBtn.innerHTML = `<i class="ph-bold ph-percent"></i><span>${pct > 0 ? `-${pct}%` : 'ដាក់ %'}</span>`;
+                    ownerBtn.onclick = (e) => window.openQuickDiscountPrompt(prodId, e);
+                    imgContainer.appendChild(ownerBtn);
+                }
+
+                // C. Render Highlighted Discount Price + Small Strikethrough Original Price next to it
+                const priceTarget = card.querySelector('.sh-price-render-slot') || mainPriceEl;
+                if (priceTarget) {
+                    priceTarget.classList.add('sh-price-render-slot');
+                    const origPrice = discInfo?.originalPrice || originalPriceBackup[prodId] || parseFloat((priceTarget.textContent || '').replace(/[^0-9.]/g, '')) || 0;
+
+                    if (pct > 0 && origPrice > 0) {
+                        const salePrice = calcDiscountedPrice(origPrice, pct);
+                        priceTarget.innerHTML = `
+                            <span class="inline-flex flex-wrap items-baseline">
+                                <span class="sh-sale-price-highlight">${fmtUsd(salePrice)}</span>
+                                <span class="sh-normal-price-cut">${fmtUsd(origPrice)}</span>
+                            </span>
+                        `;
+                        // Update KHR secondary price right under it if present
+                        const parentPriceCol = priceTarget.parentElement;
+                        if (parentPriceCol) {
+                            const khrEl = Array.from(parentPriceCol.querySelectorAll('span, div, p')).find(el =>
+                                el !== priceTarget && (el.textContent || '').includes('៛')
+                            );
+                            if (khrEl) khrEl.textContent = fmtKhr(salePrice);
+                        }
+                    } else if (origPrice > 0) {
+                        priceTarget.innerHTML = `<span>${fmtUsd(origPrice)}</span>`;
+                    }
+                }
+            });
+        }
+
+        // 5. Also show the Discount Price + Strikethrough Normal Price + "-40%" Badge inside the Lightbox Order Popup
+        const origOpenLightbox = window.openLightbox;
+        if (typeof origOpenLightbox === 'function') {
+            window.openLightbox = function(prodId) {
+                origOpenLightbox(prodId);
+                setTimeout(() => {
+                    const discInfo = productDiscounts[prodId];
+                    const lbPriceUsd = document.getElementById('lightboxPriceUSD');
+                    const lbPriceKhr = document.getElementById('lightboxPriceKHR');
+                    if (discInfo && discInfo.percent > 0 && discInfo.originalPrice > 0 && lbPriceUsd) {
+                        const salePrice = calcDiscountedPrice(discInfo.originalPrice, discInfo.percent);
+                        lbPriceUsd.innerHTML = `
+                            <span class="sh-sale-price-highlight">${fmtUsd(salePrice)}</span>
+                            <span class="sh-normal-price-cut text-base">${fmtUsd(discInfo.originalPrice)}</span>
+                            <span class="ml-2 px-2.5 py-0.5 rounded-full bg-rose-600 text-white text-xs font-black align-middle">-${discInfo.percent}%</span>
+                        `;
+                        if (lbPriceKhr) {
+                            lbPriceKhr.textContent = `≈ ${fmtKhr(salePrice)}`;
+                        }
+                    }
+                }, 40);
+            };
+        }
+
+        // Listen for Firebase Cloud real-time discount updates so all customers see discounts immediately
+        setTimeout(() => {
+            try {
+                const app = getApp();
+                const db = getFirestore(app);
+                onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'storeMeta'), (snap) => {
+                    if (snap.exists() && snap.data().productDiscountsMap) {
+                        productDiscounts = snap.data().productDiscountsMap || {};
+                        saveDiscountsLocalAndDom();
+                        decorateAllProductCardsWithDiscounts();
+                    }
+                });
+            } catch (e) {}
+        }, 600);
+
+        // Initialize and keep cards decorated whenever products filter/search/re-render
+        loadSavedDiscounts();
+        window.addEventListener('DOMContentLoaded', () => {
+            hookProductModalOpenAndSubmit();
+            setTimeout(decorateAllProductCardsWithDiscounts, 150);
+        });
+        setTimeout(() => {
+            hookProductModalOpenAndSubmit();
+            decorateAllProductCardsWithDiscounts();
+        }, 250);
+
+        // Re-apply discount badges automatically whenever user searches, switches categories, or unlocks Owner Mode
+        const gridsObserver = new MutationObserver(() => {
+            decorateAllProductCardsWithDiscounts();
+        });
+        window.addEventListener('DOMContentLoaded', () => {
+            const mainGrid = document.getElementById('productsGrid');
+            const topGrid = document.getElementById('topPicksGrid');
+            if (mainGrid) gridsObserver.observe(mainGrid, { childList: true });
+            if (topGrid) gridsObserver.observe(topGrid, { childList: true });
+        });
+        document.addEventListener('click', () => setTimeout(decorateAllProductCardsWithDiscounts, 100));
+    </script>
 </body></html>
