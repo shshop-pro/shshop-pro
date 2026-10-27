@@ -6276,26 +6276,23 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         let latestOwnerBotCanvas = null;
         let activePreviewType = 'customer';
         let latestOrderCode = 'SH-' + Math.floor(100000 + Math.random() * 900000);
-        let lastSentOrderSignature = '';
+        let isInternalBotDispatch = false;
 
         function isWebsiteEnglish() {
             const labelEl = document.getElementById('langLabel');
             return Boolean(labelEl && labelEl.textContent.trim() === 'ខ្មែរ');
         }
 
-        // Automatically scan all localStorage & DOM inputs to find your existing Telegram Bot Token & Chat ID
         function getTelegramBotCredentials() {
             let botToken = '';
             let chatId = '';
 
-            // 1. Check our saved key
             try {
                 const saved = JSON.parse(localStorage.getItem(BOT_CONFIG_KEY) || '{}');
                 if (saved.botToken) botToken = saved.botToken;
                 if (saved.chatId) chatId = saved.chatId;
             } catch (e) {}
 
-            // 2. Scan ALL localStorage keys in your app for any saved botToken / chatId
             if (!botToken || !chatId) {
                 try {
                     for (let i = 0; i < localStorage.length; i++) {
@@ -6314,7 +6311,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 } catch (e) {}
             }
 
-            // 3. Check all possible DOM input fields in your Telegram Settings modal
             const possibleTokenIds = ['rcptBotTokenInput', 'tgBotTokenInput', 'botTokenInput', 'telegramBotToken', 'adminBotToken'];
             const possibleChatIds = ['rcptBotChatIdInput', 'tgChatIdInput', 'chatIdInput', 'telegramChatId', 'adminChatId'];
 
@@ -6331,6 +6327,65 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 botToken: (botToken || '').trim(),
                 chatId: (chatId || '').trim()
             };
+        }
+
+        // Detect if Customer Uploaded an ABA / ACLEDA Payment Slip Image in the Cart Form
+        function getCustomerUploadedPaymentSlip() {
+            // 1. Check any file input inside the cart/checkout area
+            const fileInputs = document.querySelectorAll('input[type="file"]');
+            for (const inp of fileInputs) {
+                // Skip Owner Mode product/hero uploaders
+                if (inp.closest('#productModal') || inp.closest('#heroSettingsModal')) continue;
+                if (inp.files && inp.files[0]) {
+                    return inp.files[0];
+                }
+            }
+            // 2. Check any preview image of payment slip in the cart drawer
+            const slipPreviewSelectors = [
+                '#paymentSlipPreview', '#slipPreviewImg', '#receiptPreviewImg',
+                '#cartDrawer img[src^="data:image"]', '#cartDrawer img[src^="blob:"]'
+            ];
+            for (const sel of slipPreviewSelectors) {
+                const imgEl = document.querySelector(sel);
+                if (imgEl && imgEl.src && !imgEl.classList.contains('hidden')) {
+                    return imgEl;
+                }
+            }
+            return null;
+        }
+
+        // Convert File / Blob / DataURL / HTMLImageElement into a drawable HTMLImageElement
+        function loadDrawableImage(source) {
+            return new Promise((resolve) => {
+                if (!source) { resolve(null); return; }
+                if (source instanceof HTMLImageElement) {
+                    if (source.complete && source.naturalWidth > 0) { resolve(source); return; }
+                    source.onload = () => resolve(source);
+                    source.onerror = () => resolve(null);
+                    return;
+                }
+                if (source instanceof Blob || source instanceof File) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => resolve(img);
+                        img.onerror = () => resolve(null);
+                        img.src = e.target.result;
+                    };
+                    reader.onerror = () => resolve(null);
+                    reader.readAsDataURL(source);
+                    return;
+                }
+                if (typeof source === 'string') {
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    img.onload = () => resolve(img);
+                    img.onerror = () => resolve(null);
+                    img.src = source;
+                    return;
+                }
+                resolve(null);
+            });
         }
 
         function syncReceiptModalLanguage() {
@@ -6370,7 +6425,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             try { localStorage.setItem(SHOP_PHONE_KEY, clean); } catch (e) {}
             document.body.setAttribute('data-shop-phone', clean);
 
-            renderBothReceiptsAndShowPreview(false);
+            await renderBothReceiptsForPreviewOnly();
 
             try {
                 const app = getApp();
@@ -6425,7 +6480,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                                 chatId: data.receiptBotChatId || ''
                             }));
                         }
-                        // Also capture botToken/chatId if your main app stored them in storeMeta under another field
                         const cloudTok = data.telegramBotToken || data.botToken || data.tgBotToken;
                         const cloudChat = data.telegramChatId || data.chatId || data.tgChatId;
                         if (cloudTok && cloudChat && !data.receiptBotToken) {
@@ -6532,7 +6586,9 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             return { custName, custPhone, custAddress, custNote, rate, fmtUsd, fmtKhr, dateStr, timeStr };
         }
 
-        // DESIGN 1: CUSTOMER RECEIPT IMAGE (Bento-Ticket Style, NO KHQR, Language-Aware)
+        // ============================================================================
+        // DESIGN 1: CUSTOMER RECEIPT IMAGE (For "ចម្លងអត្ថបទវិក្កយបត្រ (Copy)" Popup Only)
+        // ============================================================================
         function buildCustomerReceiptCanvas(items, orderMeta) {
             const isEn = isWebsiteEnglish();
             const { custName, custPhone, custAddress, custNote, rate, fmtUsd, fmtKhr, dateStr, timeStr } = orderMeta;
@@ -6830,13 +6886,16 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             return canvas;
         }
 
-        // DESIGN 2: OWNER TELEGRAM BOT DISPATCH CARD (Dark Merchant Dashboard Layout)
-        function buildOwnerTelegramOrderCanvas(items, orderMeta) {
+        // ============================================================================
+        // DESIGN 2: OWNER TELEGRAM BOT DISPATCH CARD (With Embedded ABA/ACLEDA Payment Slip!)
+        // ============================================================================
+        function buildOwnerTelegramOrderCanvas(items, orderMeta, paymentSlipImg = null) {
             const { custName, custPhone, custAddress, custNote, fmtUsd, fmtKhr, dateStr, timeStr } = orderMeta;
 
             const rowH = 92;
+            const slipSectionH = paymentSlipImg ? 450 : 0; // Extra height when customer uploads ABA/ACLEDA payment receipt!
             const canvasW = 860;
-            const canvasH = 740 + (items.length * rowH);
+            const canvasH = 740 + (items.length * rowH) + slipSectionH;
 
             const canvas = document.createElement('canvas');
             canvas.width = canvasW;
@@ -6853,12 +6912,13 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             ctx.fillStyle = '#181826'; ctx.fill();
             ctx.strokeStyle = '#D4FF33'; ctx.lineWidth = 2.5; ctx.stroke();
 
-            drawRoundedRect(ctx, pad + 24, pad + 22, 190, 34, 10);
-            ctx.fillStyle = '#D4FF33'; ctx.fill();
+            drawRoundedRect(ctx, pad + 24, pad + 22, 235, 34, 10);
+            ctx.fillStyle = paymentSlipImg ? '#10B981' : '#D4FF33';
+            ctx.fill();
             ctx.textAlign = 'center';
-            ctx.fillStyle = '#090A0F';
-            ctx.font = '900 14px "Plus Jakarta Sans", sans-serif';
-            ctx.fillText('🔔 NEW ORDER ALERT', pad + 119, pad + 44);
+            ctx.fillStyle = paymentSlipImg ? '#FFFFFF' : '#090A0F';
+            ctx.font = '900 13px "Plus Jakarta Sans", "Kantumruy Pro", sans-serif';
+            ctx.fillText(paymentSlipImg ? '✅ ភ្ជាប់រូបបង់ប្រាក់ ABA/ACLEDA' : '🔔 NEW ORDER ALERT', pad + 141, pad + 44);
 
             ctx.textAlign = 'left';
             ctx.fillStyle = '#FFFFFF';
@@ -6973,7 +7033,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             ctx.textAlign = 'left';
             ctx.fillStyle = '#090A0F';
             ctx.font = '900 16px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
-            ctx.fillText('💰 ទឹកប្រាក់សរុបត្រូវប្រមូលពីភ្ញៀវ (AMOUNT TO COLLECT)', pad + 28, curY + 40);
+            ctx.fillText(paymentSlipImg ? '💰 ទឹកប្រាក់សរុប (ភ្ញៀវបានភ្ជាប់រូបបង់ប្រាក់ខាងក្រោម)' : '💰 ទឹកប្រាក់សរុបត្រូវប្រមូលពីភ្ញៀវ (AMOUNT TO COLLECT)', pad + 28, curY + 40);
 
             ctx.font = '700 15px "Kantumruy Pro", "JetBrains Mono", sans-serif';
             ctx.fillText(`តម្លៃដើម៖ ${fmtUsd(totalOriginalUsd)}   |   បញ្ចុះតម្លៃសរុប៖ -${fmtUsd(totalSaved)}`, pad + 28, curY + 74);
@@ -6990,13 +7050,75 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             ctx.font = '900 24px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
             ctx.fillText(`≈ ${fmtKhr(grandTotalUsd)}`, pad + boxW - 28, curY + 116);
 
+            // 5. IF CUSTOMER UPLOADED AN ABA / ACLEDA PAYMENT SLIP -> Draw It Directly Inside the Owner Card!
+            if (paymentSlipImg) {
+                curY += 168;
+                drawRoundedRect(ctx, pad, curY, boxW, 420, 24);
+                ctx.fillStyle = '#12131F';
+                ctx.fill();
+                ctx.strokeStyle = '#10B981';
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+
+                // Header inside slip box
+                drawRoundedRect(ctx, pad + 20, curY + 16, boxW - 40, 44, 12);
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.18)';
+                ctx.fill();
+                ctx.textAlign = 'left';
+                ctx.fillStyle = '#34D399';
+                ctx.font = '900 16px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+                ctx.fillText('🧾 រូបភាពវិក្កយបត្របង់ប្រាក់របស់ភ្ញៀវ (ABA / ACLEDA PAYMENT SLIP)', pad + 36, curY + 44);
+
+                // Draw the customer's payment receipt image scaled cleanly on the left/center
+                const maxSlipW = 360;
+                const maxSlipH = 330;
+                const imgW = paymentSlipImg.naturalWidth || paymentSlipImg.width || 300;
+                const imgH = paymentSlipImg.naturalHeight || paymentSlipImg.height || 300;
+                const scale = Math.min(maxSlipW / imgW, maxSlipH / imgH);
+                const drawW = Math.round(imgW * scale);
+                const drawH = Math.round(imgH * scale);
+
+                const slipX = pad + 36;
+                const slipY = curY + 74 + Math.round((maxSlipH - drawH) / 2);
+
+                ctx.save();
+                drawRoundedRect(ctx, slipX - 4, slipY - 4, drawW + 8, drawH + 8, 14);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fill();
+                ctx.drawImage(paymentSlipImg, slipX, slipY, drawW, drawH);
+                ctx.restore();
+
+                // Verification note on the right of the slip
+                const infoX = pad + 425;
+                ctx.textAlign = 'left';
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '800 18px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+                ctx.fillText('ការទូទាត់ប្រាក់តាមធនាគារ', infoX, curY + 115);
+
+                ctx.fillStyle = '#94A3B8';
+                ctx.font = '600 15px "Kantumruy Pro", sans-serif';
+                ctx.fillText('• ភ្ញៀវបានភ្ជាប់រូបភាពបង់ប្រាក់ (ABA / ACLEDA)', infoX, curY + 150);
+                ctx.fillText('• រូបភាពច្បាស់ពេញទំហំក៏ត្រូវបានផ្ញើភ្ជាប់មកជាមួយដែរ', infoX, curY + 182);
+                ctx.fillText(`• ទឹកប្រាក់ត្រូវផ្ទៀងផ្ទាត់៖ ${fmtUsd(grandTotalUsd)}`, infoX, curY + 214);
+
+                drawRoundedRect(ctx, infoX, curY + 245, 310, 56, 14);
+                ctx.fillStyle = 'rgba(212, 255, 51, 0.14)';
+                ctx.fill();
+                ctx.strokeStyle = '#D4FF33';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+                ctx.fillStyle = '#D4FF33';
+                ctx.font = '800 15px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+                ctx.fillText('✓ សូមពិនិត្យទឹកប្រាក់ក្នុងគណនីធនាគាររបស់អ្នក', infoX + 18, curY + 279);
+            }
+
             return canvas;
         }
 
-        // Send the Owner Dispatch Card Image via /sendPhoto to your Telegram Bot
         const nativeFetch = window.fetch.bind(window);
 
-        async function sendOwnerOrderCardToTelegramBot(explicitToken = '', explicitChatId = '') {
+        // Dispatch Owner Receipt Image (+ Customer's Uploaded ABA/ACLEDA Slip if present) to Telegram Bot
+        async function dispatchOwnerReceiptToTelegram(explicitToken = '', explicitChatId = '', explicitSlipBlobOrFile = null) {
             const items = getCurrentCartItemsWithDiscounts();
             if (items.length === 0) return null;
 
@@ -7005,15 +7127,12 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             const chatId = explicitChatId || creds.chatId;
             if (!botToken || !chatId) return null;
 
-            const orderMeta = buildOrderMeta();
-            const signature = `${orderMeta.custPhone}|${items.map(i => `${i.name}:${i.qty}`).join(',')}`;
-            if (signature === lastSentOrderSignature && Date.now() - (window.__lastBotPhotoTime || 0) < 4000) {
-                return null; // Prevent duplicate double-send within 4 seconds
-            }
-            lastSentOrderSignature = signature;
-            window.__lastBotPhotoTime = Date.now();
+            // Check if customer uploaded an ABA/ACLEDA payment slip
+            const slipSource = explicitSlipBlobOrFile || getCustomerUploadedPaymentSlip();
+            const drawableSlipImg = await loadDrawableImage(slipSource);
 
-            const ownerCanvas = buildOwnerTelegramOrderCanvas(items, orderMeta);
+            const orderMeta = buildOrderMeta();
+            const ownerCanvas = buildOwnerTelegramOrderCanvas(items, orderMeta, drawableSlipImg);
             latestOwnerBotCanvas = ownerCanvas;
 
             const { custName, custPhone, custAddress, custNote, fmtUsd, fmtKhr } = orderMeta;
@@ -7023,8 +7142,11 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 `${i + 1}. ${it.name} (x${it.qty}) = ${fmtUsd(it.lineTotalUsd)}${it.discountPct > 0 ? ` [-${it.discountPct}%]` : ''}`
             ).join('\n');
 
+            const slipBadgeLine = drawableSlipImg ? `✅ <b>ភ្ជាប់រូបវិក្កយបត្របង់ប្រាក់ (ABA / ACLEDA)</b>\n` : '';
+
             const caption =
                 `🔔 <b>ប័ណ្ណកម្មង់ទំនិញថ្មី (#${latestOrderCode})</b>\n` +
+                slipBadgeLine +
                 `━━━━━━━━━━━━━━━━━━\n` +
                 `👤 <b>ឈ្មោះភ្ញៀវ៖</b> ${custName}\n` +
                 `📞 <b>លេខទូរស័ព្ទ៖</b> <code>${custPhone}</code>\n` +
@@ -7036,35 +7158,61 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 `💰 <b>សរុបត្រូវទូទាត់៖ ${fmtUsd(grandTotalUsd)} (≈ ${fmtKhr(grandTotalUsd)})</b>`;
 
             return new Promise((resolve) => {
-                ownerCanvas.toBlob(async (blob) => {
-                    if (!blob) { resolve(null); return; }
+                ownerCanvas.toBlob(async (ownerBlob) => {
+                    if (!ownerBlob) { resolve(null); return; }
+                    isInternalBotDispatch = true;
                     try {
+                        // 1. Send the Dark Owner Dispatch Receipt Image (which already embeds the ABA/ACLEDA slip!)
                         const formData = new FormData();
                         formData.append('chat_id', chatId);
-                        formData.append('photo', blob, `Owner-Order-${latestOrderCode}.png`);
+                        formData.append('photo', ownerBlob, `Owner-Order-${latestOrderCode}.png`);
                         formData.append('caption', caption);
                         formData.append('parse_mode', 'HTML');
 
-                        const resp = await nativeFetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                        const mainResp = await nativeFetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
                             method: 'POST',
                             body: formData
                         });
-                        resolve(resp);
+
+                        // 2. If the customer also uploaded a raw ABA/ACLEDA payment file/blob, send the full-res slip right after so the owner can zoom in!
+                        if (slipSource instanceof Blob || slipSource instanceof File) {
+                            const slipForm = new FormData();
+                            slipForm.append('chat_id', chatId);
+                            slipForm.append('photo', slipSource, `Payment-Slip-${latestOrderCode}.png`);
+                            slipForm.append('caption', `🧾 រូបភាពបង់ប្រាក់ដើមរបស់ភ្ញៀវ (${custName} • ${custPhone}) សម្រាប់ប័ណ្ណ #${latestOrderCode}`);
+                            await nativeFetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                                method: 'POST',
+                                body: slipForm
+                            });
+                        }
+
+                        isInternalBotDispatch = false;
+                        resolve(mainResp);
                     } catch (e) {
+                        isInternalBotDispatch = false;
                         resolve(null);
                     }
                 }, 'image/png');
             });
         }
 
-        // KEY FIX: Intercept any plain-text `/sendMessage` call to `api.telegram.org` and replace it with `/sendPhoto`!
+        // ============================================================================
+        // FIX #1 & #3: INTERCEPT BOTH `/sendMessage` AND `/sendPhoto` FROM "ផ្ញើវិក្កយបត្រកម្មង់ទៅ Telegram"
+        // ============================================================================
         window.fetch = async function(input, init) {
+            if (isInternalBotDispatch) {
+                return nativeFetch(input, init);
+            }
+
             const urlStr = typeof input === 'string' ? input : (input?.url || '');
-            const match = urlStr.match(/api\.telegram\.org\/bot([^/]+)\/sendMessage/i);
+            // Match BOTH /sendMessage (no slip uploaded) AND /sendPhoto (when customer uploads ABA/ACLEDA slip!)
+            const match = urlStr.match(/api\.telegram\.org\/bot([^/]+)\/(sendMessage|sendPhoto)/i);
 
             if (match && match[1]) {
                 const interceptedToken = match[1];
+                const methodType = match[2].toLowerCase();
                 let interceptedChatId = '';
+                let uploadedSlipFile = null;
 
                 try {
                     if (init && init.body) {
@@ -7073,11 +7221,15 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                             interceptedChatId = String(parsed.chat_id || '');
                         } else if (init.body instanceof FormData) {
                             interceptedChatId = String(init.body.get('chat_id') || '');
+                            // Extract the uploaded ABA/ACLEDA payment receipt photo from FormData!
+                            const photoField = init.body.get('photo');
+                            if (photoField instanceof Blob || photoField instanceof File) {
+                                uploadedSlipFile = photoField;
+                            }
                         }
                     }
                 } catch (e) {}
 
-                // Save these working credentials automatically so you never have to re-enter them!
                 if (interceptedToken && interceptedChatId) {
                     try {
                         localStorage.setItem(BOT_CONFIG_KEY, JSON.stringify({
@@ -7087,12 +7239,12 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                     } catch (e) {}
                 }
 
-                // If there are items in the cart, send the Owner Dispatch Receipt IMAGE (/sendPhoto) instead of text!
                 const items = getCurrentCartItemsWithDiscounts();
                 if (items.length > 0) {
-                    const photoResp = await sendOwnerOrderCardToTelegramBot(interceptedToken, interceptedChatId);
-                    if (photoResp && photoResp.ok) {
-                        return photoResp;
+                    latestOrderCode = 'SH-' + Math.floor(100000 + Math.random() * 900000);
+                    const botResp = await dispatchOwnerReceiptToTelegram(interceptedToken, interceptedChatId, uploadedSlipFile);
+                    if (botResp && botResp.ok) {
+                        return botResp;
                     }
                 }
             }
@@ -7100,25 +7252,28 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             return nativeFetch(input, init);
         };
 
-        function renderBothReceiptsAndShowPreview(sendToBot = false) {
+        // ============================================================================
+        // FIX #2: "ចម្លងអត្ថបទវិក្កយបត្រ (Copy)" ONLY OPENS CUSTOMER RECEIPT POPUP (NO BOT SEND)
+        // ============================================================================
+        async function renderBothReceiptsForPreviewOnly() {
             const items = getCurrentCartItemsWithDiscounts();
             if (items.length === 0) {
                 if (typeof window.showToast === 'function') {
                     window.showToast(isWebsiteEnglish() ? "Please add products to cart first!" : "សូមជ្រើសរើសទំនិញចូលកន្ត្រកជាមុនសិន!");
                 }
-                return;
+                return false;
             }
 
             const orderMeta = buildOrderMeta();
+            const slipSource = getCustomerUploadedPaymentSlip();
+            const drawableSlipImg = await loadDrawableImage(slipSource);
+
             latestCustomerCanvas = buildCustomerReceiptCanvas(items, orderMeta);
-            latestOwnerBotCanvas = buildOwnerTelegramOrderCanvas(items, orderMeta);
+            latestOwnerBotCanvas = buildOwnerTelegramOrderCanvas(items, orderMeta, drawableSlipImg);
 
             syncReceiptModalLanguage();
             updateDisplayedPreviewCanvas();
-
-            if (sendToBot) {
-                sendOwnerOrderCardToTelegramBot();
-            }
+            return true;
         }
 
         function updateDisplayedPreviewCanvas() {
@@ -7174,8 +7329,8 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                         if (btnSpan) btnSpan.textContent = isWebsiteEnglish() ? "Image Copied ✓" : "បានចម្លងរូបភាព ✓";
                         if (typeof window.showToast === 'function') {
                             window.showToast(isWebsiteEnglish()
-                                ? "Receipt image copied! Paste (Ctrl+V) in Telegram ✓"
-                                : "បានចម្លងរូបវិក្កយបត្រ! អាច Paste (Ctrl+V) ក្នុង Telegram បានភ្លាមៗ ✓");
+                                ? "Receipt image copied! You can download or paste it ✓"
+                                : "បានចម្លងរូបវិក្កយបត្រ! អតិថិជនអាចទាញយករក្សាទុកបាន ✓");
                         }
                         setTimeout(() => syncReceiptModalLanguage(), 2500);
                     } else {
@@ -7187,26 +7342,29 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             }, 'image/png');
         };
 
-        function hookOrderAndCopyButtons() {
+        // Bind "ចម្លងអត្ថបទវិក្កយបត្រ (Copy)" ONLY to show the Customer Receipt Popup for downloading!
+        function hookCopyInvoiceButtonOnlyForCustomerPopup() {
             const origCopyFn = window.copyInvoiceToClipboard;
-            window.copyInvoiceToClipboard = function() {
+            window.copyInvoiceToClipboard = async function() {
                 if (typeof origCopyFn === 'function') {
                     try { origCopyFn(); } catch (e) {}
                 }
                 latestOrderCode = 'SH-' + Math.floor(100000 + Math.random() * 900000);
                 activePreviewType = 'customer';
-                renderBothReceiptsAndShowPreview(true);
+
+                // Renders the Customer Receipt & opens the modal WITHOUT sending to Telegram Bot!
+                const ok = await renderBothReceiptsForPreviewOnly();
+                if (!ok) return;
 
                 const modal = document.getElementById('modernReceiptModal');
                 if (modal) {
                     modal.classList.remove('hidden');
                     modal.classList.add('flex');
                 }
-                window.copyModernReceiptImage();
             };
         }
 
-        window.addEventListener('DOMContentLoaded', () => setTimeout(hookOrderAndCopyButtons, 100));
-        setTimeout(hookOrderAndCopyButtons, 200);
+        window.addEventListener('DOMContentLoaded', () => setTimeout(hookCopyInvoiceButtonOnlyForCustomerPopup, 100));
+        setTimeout(hookCopyInvoiceButtonOnlyForCustomerPopup, 200);
     </script>
 </body></html>
