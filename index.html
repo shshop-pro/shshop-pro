@@ -7986,18 +7986,18 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         });
         document.addEventListener('click', () => setTimeout(decorateAllProductCardsWithDiscounts, 100));
     </script>
-	<!-- Creative Bento-Ticket Digital Order Receipt Generator (Full Customer & Order Details) -->
+	<!-- Dual Receipt Engine: Customer Receipt (Khmer/EN + Custom Phone, No KHQR) + Owner Telegram Bot Order Card -->
     <div id="modernReceiptModal" class="fixed inset-0 z-[9998] hidden items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-md overflow-y-auto" onclick="if(event.target===this) closeModernReceiptModal()">
         <div class="bg-white dark:bg-[#12101B] border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-4 sm:p-5 shadow-floating my-auto space-y-3.5 animate-fade-in">
-            <!-- Modal Header -->
+            <!-- Modal Header (Auto-Switches Khmer / English) -->
             <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
                 <div class="flex items-center gap-2.5">
                     <span class="w-9 h-9 rounded-xl bg-[#12101B] dark:bg-[#D4FF33] text-[#D4FF33] dark:text-[#12101B] flex items-center justify-center shadow-xs">
                         <i class="ph-fill ph-receipt text-xl"></i>
                     </span>
                     <div>
-                        <h3 class="text-sm font-black text-slate-900 dark:text-white leading-tight">Official Order Receipt</h3>
-                        <p class="text-[11px] font-bold text-emerald-600 dark:text-[#D4FF33]">Text & Receipt Image Ready ✓</p>
+                        <h3 id="rcptModalTitle" class="text-sm font-black text-slate-900 dark:text-white leading-tight">វិក្កយបត្រកម្មង់ទំនិញផ្លូវការ</h3>
+                        <p id="rcptModalSub" class="text-[11px] font-bold text-emerald-600 dark:text-[#D4FF33]">បានចម្លងអត្ថបទ និងបង្កើតរូបវិក្កយបត្ររួចរាល់ ✓</p>
                     </div>
                 </div>
                 <button type="button" onclick="closeModernReceiptModal()" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center cursor-pointer">
@@ -8005,615 +8005,966 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 </button>
             </div>
 
-            <!-- Live Generated Receipt Image Preview -->
-            <div class="rounded-2xl bg-slate-100 dark:bg-slate-900 p-2.5 flex items-center justify-center max-h-[62dvh] overflow-y-auto border border-slate-200 dark:border-slate-800">
-                <img id="modernReceiptPreviewImg" src="" alt="SHSHOP PRO Detailed Receipt" class="w-full h-auto rounded-xl shadow-md object-contain">
+            <!-- OWNER-ONLY QUICK CUSTOMIZER: Shop Phone Number + Preview Switcher (Customer vs Owner Bot Design) -->
+            <div id="rcptOwnerConfigBox" class="hidden p-3 rounded-2xl bg-indigo-50/90 dark:bg-slate-900 border border-indigo-200 dark:border-indigo-500/40 space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-extrabold text-indigo-700 dark:text-[#D4FF33] flex items-center gap-1">
+                        <i class="ph-fill ph-gear-six"></i> កំណត់លេខទូរស័ព្ទហាងលើវិក្កយបត្រ (Owner Mode)
+                    </span>
+                    <div class="inline-flex rounded-lg bg-white dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700 text-[10px] font-extrabold">
+                        <button type="button" id=" tabPreviewCust" onclick="switchReceiptPreviewType('customer')" class="px-2 py-0.5 rounded-md bg-indigo-600 text-white cursor-pointer">ភ្ញៀវ (Customer)</button>
+                        <button type="button" id="tabPreviewOwner" onclick="switchReceiptPreviewType('owner')" class="px-2 py-0.5 rounded-md text-slate-600 dark:text-slate-300 cursor-pointer">Telegram Bot (Owner)</button>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-1.5">
+                    <input type="text" id="rcptShopPhoneInput" placeholder="ឧ. 012 345 678 / 096 888 9999" class="flex-1 px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white">
+                    <button type="button" onclick="saveReceiptShopPhone()" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold shrink-0 cursor-pointer">
+                        រក្សាទុក
+                    </button>
+                </div>
+
+                <!-- Optional Telegram Bot Token & Chat ID if not set in main app -->
+                <details class="text-[11px] text-slate-600 dark:text-slate-300">
+                    <summary class="cursor-pointer font-bold text-indigo-600 dark:text-indigo-400">កំណត់ Telegram Bot ដើម្បីទទួលរូបវិក្កយបត្រស្វ័យប្រវត្តិ (Bot Token / Chat ID)</summary>
+                    <div class="mt-2 space-y-1.5">
+                        <input type="text" id="rcptBotTokenInput" placeholder="Telegram Bot Token (ឧ. 123456:ABC-DEF...)" class="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-mono">
+                        <div class="flex gap-1.5">
+                            <input type="text" id="rcptBotChatIdInput" placeholder="Telegram Chat ID (ឧ. 987654321 ឬ -100...)" class="flex-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-mono">
+                            <button type="button" onclick="saveReceiptBotConfig()" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-extrabold text-[11px] cursor-pointer">រក្សាទុក Bot</button>
+                        </div>
+                    </div>
+                </details>
             </div>
 
-            <!-- Action Buttons: Copy Image, Download PNG, Open Telegram -->
+            <!-- Live Generated Receipt Image Preview -->
+            <div class="rounded-2xl bg-slate-100 dark:bg-slate-900 p-2.5 flex items-center justify-center max-h-[60dvh] overflow-y-auto border border-slate-200 dark:border-slate-800">
+                <img id="modernReceiptPreviewImg" src="" alt="SHSHOP PRO Receipt" class="w-full h-auto rounded-xl shadow-md object-contain">
+            </div>
+
+            <!-- Action Buttons (Auto-Switches Khmer / English) -->
             <div class="grid grid-cols-2 gap-2 pt-1">
                 <button type="button" onclick="copyModernReceiptImage()" class="py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-sm transition active:scale-95 cursor-pointer">
                     <i class="ph-bold ph-copy text-base"></i>
-                    <span id="btnCopyReceiptImgText">Copy Receipt Image</span>
+                    <span id="btnCopyReceiptImgText">ចម្លងរូបវិក្កយបត្រ</span>
                 </button>
                 <button type="button" onclick="downloadModernReceiptImage()" class="py-2.5 px-3 rounded-xl bg-[#12101B] dark:bg-[#D4FF33] text-white dark:text-[#12101B] text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-sm transition active:scale-95 cursor-pointer">
                     <i class="ph-bold ph-download-simple text-base"></i>
-                    <span>Download PNG</span>
+                    <span id="btnDownloadReceiptImgText">ទាញយករូប (PNG)</span>
                 </button>
             </div>
 
             <button type="button" onclick="openDirectTelegramChat()" class="w-full py-2.5 px-4 rounded-xl bg-[#229ED9] hover:bg-[#1c8ec4] text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-sm transition active:scale-95 cursor-pointer">
                 <i class="ph-fill ph-telegram-logo text-base"></i>
-                <span>Send Receipt to Shop Telegram</span>
+                <span id="btnSendTelegramReceiptText">ផ្ញើរូបវិក្កយបត្រចូល Telegram ហាង</span>
             </button>
         </div>
     </div>
 
-    <script>
-        (function() {
-            let latestReceiptCanvas = null;
-            let latestOrderCode = "SH-99482";
+    <script type="module">
+        import { getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-            // Helper: Draw Rounded Rectangle
-            function drawRoundedRect(ctx, x, y, width, height, radius) {
-                const r = typeof radius === 'number' ? { tl: radius, tr: radius, br: radius, bl: radius } : radius;
-                ctx.beginPath();
-                ctx.moveTo(x + r.tl, y);
-                ctx.lineTo(x + width - r.tr, y);
-                ctx.quadraticCurveTo(x + width, y, x + width, y + r.tr);
-                ctx.lineTo(x + width, y + height - r.br);
-                ctx.quadraticCurveTo(x + width, y + height, x + width - r.br, y + height);
-                ctx.lineTo(x + r.bl, y + height);
-                ctx.quadraticCurveTo(x, y + height, x, y + height - r.bl);
-                ctx.lineTo(x, y + r.tl);
-                ctx.quadraticCurveTo(x, y, x + r.tl, y);
-                ctx.closePath();
+        const SHOP_PHONE_KEY = 'shshop_pro_custom_shop_phone_v1';
+        const BOT_CONFIG_KEY = 'shshop_pro_tg_bot_config_v1';
+        const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'shshop-pro-app';
+
+        let shopPhoneNumber = localStorage.getItem(SHOP_PHONE_KEY) || document.body.getAttribute('data-shop-phone') || '012 888 999 / 096 888 9999';
+        let latestCustomerCanvas = null;
+        let latestOwnerBotCanvas = null;
+        let activePreviewType = 'customer'; // 'customer' or 'owner'
+        let latestOrderCode = "SH-99482";
+
+        // Detect if website is currently in English or Khmer
+        function isWebsiteEnglish() {
+            const labelEl = document.getElementById('langLabel');
+            return Boolean(labelEl && labelEl.textContent.trim() === 'ខ្មែរ');
+        }
+
+        // Sync Modal UI Text with Current Website Language (Khmer / English)
+        function syncReceiptModalLanguage() {
+            const isEn = isWebsiteEnglish();
+            const isOwnerUnlocked = !document.getElementById('adminControlsGroup')?.classList.contains('hidden');
+
+            const titleEl = document.getElementById('rcptModalTitle');
+            const subEl = document.getElementById('rcptModalSub');
+            const copyBtnEl = document.getElementById('btnCopyReceiptImgText');
+            const dlBtnEl = document.getElementById('btnDownloadReceiptImgText');
+            const tgBtnEl = document.getElementById('btnSendTelegramReceiptText');
+            const ownerBox = document.getElementById('rcptOwnerConfigBox');
+
+            if (titleEl) titleEl.textContent = isEn ? 'Official Order Receipt' : 'វិក្កយបត្រកម្មង់ទំនិញផ្លូវការ';
+            if (subEl) subEl.textContent = isEn ? 'Receipt Text & HD Image Ready ✓' : 'បានចម្លងអត្ថបទ និងបង្កើតរូបវិក្កយបត្ររួចរាល់ ✓';
+            if (copyBtnEl) copyBtnEl.textContent = isEn ? 'Copy Receipt Image' : 'ចម្លងរូបវិក្កយបត្រ';
+            if (dlBtnEl) dlBtnEl.textContent = isEn ? 'Download PNG' : 'ទាញយករូប (PNG)';
+            if (tgBtnEl) tgBtnEl.textContent = isEn ? 'Send Receipt to Shop Telegram' : 'ផ្ញើរូបវិក្កយបត្រចូល Telegram ហាង';
+
+            if (ownerBox) {
+                ownerBox.classList.toggle('hidden', !isOwnerUnlocked);
+                const phoneInp = document.getElementById('rcptShopPhoneInput');
+                if (phoneInp && !phoneInp.value) phoneInp.value = shopPhoneNumber;
+
+                const botCfg = getTelegramBotCredentials();
+                const tokInp = document.getElementById('rcptBotTokenInput');
+                const chatInp = document.getElementById('rcptBotChatIdInput');
+                if (tokInp && !tokInp.value) tokInp.value = botCfg.botToken;
+                if (chatInp && !chatInp.value) chatInp.value = botCfg.chatId;
             }
+        }
 
-            // Helper: Wrap long text cleanly across lines
-            function wrapCanvasText(ctx, text, maxWidth) {
-                const words = String(text || '').split(' ');
-                const lines = [];
-                let currentLine = words[0] || '';
-                for (let i = 1; i < words.length; i++) {
-                    const word = words[i];
-                    const width = ctx.measureText(currentLine + " " + word).width;
-                    if (width < maxWidth) {
-                        currentLine += " " + word;
-                    } else {
-                        lines.push(currentLine);
-                        currentLine = word;
-                    }
-                }
-                lines.push(currentLine);
-                return lines;
+        // Save Customizable Shop Phone Number (Local + DOM + Firebase Cloud)
+        window.saveReceiptShopPhone = async function() {
+            const inp = document.getElementById('rcptShopPhoneInput');
+            const clean = (inp?.value || '').trim() || '012 888 999';
+            shopPhoneNumber = clean;
+            try { localStorage.setItem(SHOP_PHONE_KEY, clean); } catch (e) {}
+            document.body.setAttribute('data-shop-phone', clean);
+
+            // Re-render both receipts immediately so Owner sees the new phone number
+            renderBothReceiptsAndShowPreview(false);
+
+            try {
+                const app = getApp();
+                const db = getFirestore(app);
+                await setDoc(
+                    doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'storeMeta'),
+                    { customShopPhone: clean },
+                    { merge: true }
+                );
+            } catch (e) {}
+
+            if (typeof window.showToast === 'function') {
+                window.showToast(isWebsiteEnglish() ? "Shop phone number updated ✓" : "បានរក្សាទុកលេខទូរស័ព្ទហាងលើវិក្កយបត្រ ✓");
             }
+        };
 
-            // Extract Full Cart Items + Discounts
-            function getCurrentCartItemsWithDiscounts() {
-                let discountsMap = {};
-                try {
-                    const rawDisc = localStorage.getItem('shshop_pro_product_discounts_v1') || document.body.getAttribute('data-product-discounts');
-                    if (rawDisc) discountsMap = JSON.parse(rawDisc) || {};
-                } catch (e) {}
+        // Read Telegram Bot Token & Chat ID (Automatically checks existing page inputs or saved config)
+        function getTelegramBotCredentials() {
+            let saved = {};
+            try {
+                saved = JSON.parse(localStorage.getItem(BOT_CONFIG_KEY) || '{}');
+            } catch (e) {}
 
-                let catalogProducts = [];
-                try {
-                    const rawCat = localStorage.getItem('shshop_pro_saved_catalog_v1');
-                    if (rawCat) {
-                        const parsed = JSON.parse(rawCat);
-                        if (Array.isArray(parsed.products)) catalogProducts = parsed.products;
-                    }
-                } catch (e) {}
+            const domToken = document.getElementById('tgBotTokenInput')?.value
+                || document.getElementById('botTokenInput')?.value
+                || document.getElementById('telegramBotToken')?.value
+                || saved.botToken || '';
 
-                const items = [];
-                const cartRows = document.querySelectorAll('#cartItemsContainer > div');
+            const domChatId = document.getElementById('tgChatIdInput')?.value
+                || document.getElementById('chatIdInput')?.value
+                || document.getElementById('telegramChatId')?.value
+                || saved.chatId || '';
 
-                cartRows.forEach(row => {
-                    const titleEl = row.querySelector('h4, .font-bold, .font-extrabold');
-                    const name = titleEl ? titleEl.textContent.trim() : '';
-                    if (!name) return;
+            return {
+                botToken: domToken.trim(),
+                chatId: domChatId.trim()
+            };
+        }
 
-                    let qty = 1;
-                    const qtySpans = Array.from(row.querySelectorAll('span')).filter(s => /^\d+$/.test(s.textContent.trim()));
-                    if (qtySpans.length > 0) qty = parseInt(qtySpans[0].textContent.trim(), 10) || 1;
-
-                    const matchedProd = catalogProducts.find(p => p.name.trim() === name);
-                    let unitSalePrice = 0;
-                    let unitOrigPrice = 0;
-                    let discountPct = 0;
-                    let categoryName = matchedProd?.category || 'Device / Accessory';
-
-                    if (matchedProd) {
-                        const dInfo = discountsMap[matchedProd.id];
-                        discountPct = Number(dInfo?.percent || matchedProd.discountPercent || 0);
-                        unitOrigPrice = Number(dInfo?.originalPrice || matchedProd.originalPrice || matchedProd.price || 0);
-                        unitSalePrice = discountPct > 0
-                            ? Number((unitOrigPrice * (1 - discountPct / 100)).toFixed(2))
-                            : Number(matchedProd.price || unitOrigPrice);
-                    } else {
-                        const priceMatch = (row.textContent || '').match(/\$(\d+(\.\d+)?)/);
-                        unitSalePrice = priceMatch ? parseFloat(priceMatch[1]) : 0;
-                        unitOrigPrice = unitSalePrice;
-                    }
-
-                    items.push({
-                        name,
-                        categoryName,
-                        qty,
-                        unitSalePrice,
-                        unitOrigPrice,
-                        discountPct,
-                        lineTotalUsd: unitSalePrice * qty,
-                        lineOrigUsd: unitOrigPrice * qty
-                    });
-                });
-
-                return items;
+        window.saveReceiptBotConfig = async function() {
+            const botToken = (document.getElementById('rcptBotTokenInput')?.value || '').trim();
+            const chatId = (document.getElementById('rcptBotChatIdInput')?.value || '').trim();
+            try {
+                localStorage.setItem(BOT_CONFIG_KEY, JSON.stringify({ botToken, chatId }));
+            } catch (e) {}
+            try {
+                const app = getApp();
+                const db = getFirestore(app);
+                await setDoc(
+                    doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'storeMeta'),
+                    { receiptBotToken: botToken, receiptBotChatId: chatId },
+                    { merge: true }
+                );
+            } catch (e) {}
+            if (typeof window.showToast === 'function') {
+                window.showToast("បានរក្សាទុក Telegram Bot សម្រាប់ទទួលវិក្កយបត្រ ✓");
             }
-
-            // Generate Creative "Bento-Ticket" Digital Order Receipt
-            window.generateModernReceiptCanvas = function(callback) {
-                const items = getCurrentCartItemsWithDiscounts();
-                if (items.length === 0) {
-                    if (typeof window.showToast === 'function') {
-                        window.showToast("Please add at least 1 product to your cart first!");
-                    }
-                    return;
-                }
-
-                // Read Customer Inputs from Cart Form
-                const custName = (document.getElementById('custName')?.value || '').trim() || 'Walk-in / Telegram Customer';
-                const custPhone = (document.getElementById('custPhone')?.value || '').trim() || 'Not Provided';
-                const custAddress = (document.getElementById('custAddress')?.value || '').trim() || 'Store Pickup / Delivery via Telegram';
-                const custNote = (document.getElementById('custNote')?.value || '').trim() || 'Standard Fast Processing • 100% Original';
-
-                const rate = Number(window.KHR_RATE || 4050);
-                const fmtUsd = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                const fmtKhr = (usd) => (Math.round((Number(usd || 0) * rate) / 100) * 100).toLocaleString('en-US') + ' ៛';
-
-                latestOrderCode = 'SH-' + Math.floor(100000 + Math.random() * 900000);
-                const now = new Date();
-                const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-                const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-
-                const itemCardH = 112;
-                const canvasW = 820;
-                const canvasH = 855 + (items.length * itemCardH);
-
-                const canvas = document.createElement('canvas');
-                canvas.width = canvasW;
-                canvas.height = canvasH;
-                const ctx = canvas.getContext('2d');
-
-                // 1. Studio Mesh Background
-                const bgGrad = ctx.createLinearGradient(0, 0, canvasW, canvasH);
-                bgGrad.addColorStop(0, '#1E1B4B');
-                bgGrad.addColorStop(0.5, '#312E81');
-                bgGrad.addColorStop(1, '#12101B');
-                ctx.fillStyle = bgGrad;
-                ctx.fillRect(0, 0, canvasW, canvasH);
-
-                // Decorative Neon Glow Orbs in Background
-                ctx.save();
-                ctx.fillStyle = 'rgba(212, 255, 51, 0.12)';
-                ctx.beginPath();
-                ctx.arc(canvasW - 100, 120, 180, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = 'rgba(99, 102, 241, 0.18)';
-                ctx.beginPath();
-                ctx.arc(120, canvasH - 140, 200, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-
-                const cardX = 44;
-                const cardY = 40;
-                const cardW = canvasW - 88;
-                const cardH = canvasH - 80;
-
-                // Main Receipt Ticket Card Container
-                ctx.save();
-                ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-                ctx.shadowBlur = 40;
-                ctx.shadowOffsetY = 18;
-                drawRoundedRect(ctx, cardX, cardY, cardW, cardH, 36);
-                ctx.fillStyle = '#F8FAFC';
-                ctx.fill();
-                ctx.restore();
-
-                // 2. Top Luxury Dark Obsidian Header Banner (#12101B)
-                const headerH = 175;
-                ctx.save();
-                drawRoundedRect(ctx, cardX, cardY, cardW, headerH, { tl: 36, tr: 36, br: 0, bl: 0 });
-                ctx.fillStyle = '#12101B';
-                ctx.fill();
-
-                // Top Neon Accent Line
-                drawRoundedRect(ctx, cardX + 40, cardY, cardW - 80, 6, { tl: 0, tr: 0, br: 6, bl: 6 });
-                ctx.fillStyle = '#D4FF33';
-                ctx.fill();
-                ctx.restore();
-
-                // Left Header: Brand Logo Box + SHSHOP PRO Title
-                drawRoundedRect(ctx, cardX + 36, cardY + 34, 68, 68, 20);
-                ctx.fillStyle = '#D4FF33';
-                ctx.fill();
-                ctx.fillStyle = '#12101B';
-                ctx.textAlign = 'center';
-                ctx.font = '900 22px "Kantumruy Pro", sans-serif';
-                ctx.fillText('សីហា', cardX + 70, cardY + 76);
-
-                ctx.textAlign = 'left';
-                ctx.fillStyle = '#FFFFFF';
-                ctx.font = '900 34px "Plus Jakarta Sans", sans-serif';
-                ctx.fillText('SHSHOP', cardX + 120, cardY + 66);
-                const shW = ctx.measureText('SHSHOP ').width;
-                ctx.fillStyle = '#D4FF33';
-                ctx.fillText('PRO', cardX + 120 + shW, cardY + 66);
-
-                ctx.fillStyle = '#94A3B8';
-                ctx.font = '700 14px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
-                ctx.fillText('សីហា ហាងលក់ទូរស័ព្ទដៃទំនើប និងគ្រឿងបន្លាស់គ្រប់ប្រភេទ', cardX + 120, cardY + 94);
-
-                // Right Header: Order Code Pill & Timestamp
-                drawRoundedRect(ctx, cardX + cardW - 246, cardY + 34, 210, 40, 14);
-                ctx.fillStyle = 'rgba(212, 255, 51, 0.15)';
-                ctx.fill();
-                ctx.strokeStyle = '#D4FF33';
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
-
-                ctx.textAlign = 'center';
-                ctx.fillStyle = '#D4FF33';
-                ctx.font = '800 16px "JetBrains Mono", monospace';
-                ctx.fillText(`#${latestOrderCode}`, cardX + cardW - 141, cardY + 60);
-
-                ctx.textAlign = 'right';
-                ctx.fillStyle = '#E2E8F0';
-                ctx.font = '700 14px "Plus Jakarta Sans", sans-serif';
-                ctx.fillText(`${dateStr} • ${timeStr}`, cardX + cardW - 36, cardY + 98);
-
-                // Header Bottom Status Strip
-                ctx.fillStyle = '#1E1B4B';
-                ctx.fillRect(cardX, cardY + 122, cardW, 53);
-                ctx.textAlign = 'left';
-                ctx.fillStyle = '#D4FF33';
-                ctx.font = '800 13px "Plus Jakarta Sans", sans-serif';
-                ctx.fillText('● OFFICIAL CUSTOMER ORDER RECEIPT / វិក្កយបត្រកម្មង់ទំនិញផ្លូវការ', cardX + 36, cardY + 154);
-
-                ctx.textAlign = 'right';
-                ctx.fillStyle = '#A5B4FC';
-                ctx.font = '700 13px "JetBrains Mono", monospace';
-                ctx.fillText(`RATE: $1 = ${rate.toLocaleString()} ៛`, cardX + cardW - 36, cardY + 154);
-
-                // 3. Creative Bento Customer Details Section (4 Info Boxes: Name, Phone, Address, Note)
-                let curY = cardY + headerH + 24;
-                const bentoW = (cardW - 72 - 16) / 2;
-
-                // Box 1: Customer Name (Top-Left)
-                drawRoundedRect(ctx, cardX + 36, curY, bentoW, 78, 18);
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fill();
-                ctx.strokeStyle = '#E2E8F0';
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
-
-                ctx.textAlign = 'left';
-                ctx.fillStyle = '#6366F1';
-                ctx.font = '800 11px "Plus Jakarta Sans", sans-serif';
-                ctx.fillText('👤 CUSTOMER NAME / ឈ្មោះអតិថិជន', cardX + 54, curY + 26);
-                ctx.fillStyle = '#0F172A';
-                ctx.font = '800 18px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
-                ctx.fillText(custName.slice(0, 26), cardX + 54, curY + 56);
-
-                // Box 2: Phone Number (Top-Right)
-                const rightBentoX = cardX + 36 + bentoW + 16;
-                drawRoundedRect(ctx, rightBentoX, curY, bentoW, 78, 18);
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fill();
-                ctx.strokeStyle = '#E2E8F0';
-                ctx.stroke();
-
-                ctx.fillStyle = '#10B981';
-                ctx.font = '800 11px "Plus Jakarta Sans", sans-serif';
-                ctx.fillText('📞 PHONE NUMBER / លេខទូរស័ព្ទទំនាក់ទំនង', rightBentoX + 18, curY + 26);
-                ctx.fillStyle = '#0F172A';
-                ctx.font = '900 19px "JetBrains Mono", "Plus Jakarta Sans", sans-serif';
-                ctx.fillText(custPhone.slice(0, 24), rightBentoX + 18, curY + 56);
-
-                curY += 92;
-
-                // Box 3: Delivery Address (Full Width)
-                drawRoundedRect(ctx, cardX + 36, curY, cardW - 72, 74, 18);
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fill();
-                ctx.strokeStyle = '#E2E8F0';
-                ctx.stroke();
-
-                ctx.fillStyle = '#F59E0B';
-                ctx.font = '800 11px "Plus Jakarta Sans", sans-serif';
-                ctx.fillText('📍 DELIVERY ADDRESS / ទីតាំងដឹកជញ្ជូន', cardX + 54, curY + 25);
-                ctx.fillStyle = '#1E293B';
-                ctx.font = '700 16px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
-                ctx.fillText(custAddress.slice(0, 58), cardX + 54, curY + 52);
-
-                curY += 88;
-
-                // Box 4: Order Note / Remarks (Full Width)
-                drawRoundedRect(ctx, cardX + 36, curY, cardW - 72, 64, 16);
-                ctx.fillStyle = '#EEF2FF';
-                ctx.fill();
-                ctx.strokeStyle = '#C7D2FE';
-                ctx.stroke();
-
-                ctx.fillStyle = '#4F46E5';
-                ctx.font = '800 11px "Plus Jakarta Sans", sans-serif';
-                ctx.fillText('📝 ORDER NOTE / ចំណាំបន្ថែម៖', cardX + 54, curY + 23);
-                ctx.fillStyle = '#312E81';
-                ctx.font = '600 15px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
-                ctx.fillText(custNote.slice(0, 62), cardX + 54, curY + 46);
-
-                // 4. Itemized Order List Header
-                curY += 86;
-                ctx.textAlign = 'left';
-                ctx.fillStyle = '#475569';
-                ctx.font = '800 12px "Plus Jakarta Sans", sans-serif';
-                ctx.fillText(`ORDER ITEMS (${items.length} ${items.length > 1 ? 'PRODUCTS' : 'PRODUCT'})`, cardX + 40, curY);
-
-                ctx.textAlign = 'right';
-                ctx.fillText('UNIT PRICE & LINE TOTAL', cardX + cardW - 40, curY);
-
-                curY += 14;
-
-                let totalOriginalUsd = 0;
-                let grandTotalUsd = 0;
-
-                // Render Each Ordered Product Inside Its Own Clean Card Row
-                items.forEach((item, index) => {
-                    totalOriginalUsd += item.lineOrigUsd;
-                    grandTotalUsd += item.lineTotalUsd;
-
-                    drawRoundedRect(ctx, cardX + 36, curY, cardW - 72, 98, 20);
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.fill();
-                    ctx.strokeStyle = '#E2E8F0';
-                    ctx.lineWidth = 1.5;
-                    ctx.stroke();
-
-                    // Number Badge (#01, #02...)
-                    drawRoundedRect(ctx, cardX + 52, curY + 20, 44, 58, 14);
-                    ctx.fillStyle = '#12101B';
-                    ctx.fill();
-                    ctx.textAlign = 'center';
-                    ctx.fillStyle = '#D4FF33';
-                    ctx.font = '900 16px "JetBrains Mono", monospace';
-                    ctx.fillText(String(index + 1).padStart(2, '0'), cardX + 74, curY + 55);
-
-                    // Product Title
-                    ctx.textAlign = 'left';
-                    ctx.fillStyle = '#0F172A';
-                    ctx.font = '800 19px "Plus Jakarta Sans", "Kantumruy Pro", sans-serif';
-                    const cleanName = item.name.length > 28 ? item.name.slice(0, 28) + '...' : item.name;
-                    ctx.fillText(cleanName, cardX + 112, curY + 40);
-
-                    // Qty Badge + Discount % Pill
-                    drawRoundedRect(ctx, cardX + 112, curY + 52, 74, 28, 8);
-                    ctx.fillStyle = '#EEF2FF';
-                    ctx.fill();
-                    ctx.textAlign = 'center';
-                    ctx.fillStyle = '#4F46E5';
-                    ctx.font = '800 13px "JetBrains Mono", sans-serif';
-                    ctx.fillText(`QTY: x${item.qty}`, cardX + 149, curY + 71);
-
-                    if (item.discountPct > 0) {
-                        drawRoundedRect(ctx, cardX + 194, curY + 52, 92, 28, 8);
-                        ctx.fillStyle = '#E1232E';
-                        ctx.fill();
-                        ctx.fillStyle = '#FFFFFF';
-                        ctx.font = '900 12px "Plus Jakarta Sans", sans-serif';
-                        ctx.fillText(`-${item.discountPct}% OFF`, cardX + 240, curY + 71);
-
-                        // Unit Original Price Strikethrough
-                        const origTxt = `${fmtUsd(item.unitOrigPrice)} each`;
-                        ctx.textAlign = 'left';
-                        ctx.fillStyle = '#94A3B8';
-                        ctx.font = '600 13px "JetBrains Mono", sans-serif';
-                        ctx.fillText(origTxt, cardX + 296, curY + 70);
-                        const ow = ctx.measureText(origTxt).width;
-                        ctx.strokeStyle = '#EF4444';
-                        ctx.lineWidth = 1.5;
-                        ctx.beginPath();
-                        ctx.moveTo(cardX + 294, curY + 65);
-                        ctx.lineTo(cardX + 298 + ow, curY + 65);
-                        ctx.stroke();
-                    } else {
-                        ctx.textAlign = 'left';
-                        ctx.fillStyle = '#64748B';
-                        ctx.font = '600 13px "JetBrains Mono", sans-serif';
-                        ctx.fillText(`${fmtUsd(item.unitSalePrice)} / unit`, cardX + 196, curY + 70);
-                    }
-
-                    // Right Side: Final Line USD Price + KHR Equivalent
-                    ctx.textAlign = 'right';
-                    ctx.fillStyle = '#E1232E';
-                    ctx.font = '900 23px "JetBrains Mono", monospace';
-                    ctx.fillText(fmtUsd(item.lineTotalUsd), cardX + cardW - 54, curY + 44);
-
-                    ctx.fillStyle = '#475569';
-                    ctx.font = '700 14px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
-                    ctx.fillText(`≈ ${fmtKhr(item.lineTotalUsd)}`, cardX + cardW - 54, curY + 72);
-
-                    curY += itemCardH;
-                });
-
-                // 5. Perforated Ticket Divider with Side Cutout Notches
-                curY += 8;
-                ctx.save();
-                ctx.fillStyle = '#25215E';
-                ctx.beginPath();
-                ctx.arc(cardX, curY, 16, -Math.PI / 2, Math.PI / 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(cardX + cardW, curY, 16, Math.PI / 2, -Math.PI / 2);
-                ctx.fill();
-
-                ctx.setLineDash([10, 8]);
-                ctx.strokeStyle = '#CBD5E1';
-                ctx.lineWidth = 2.5;
-                ctx.beginPath();
-                ctx.moveTo(cardX + 28, curY);
-                ctx.lineTo(cardX + cardW - 28, curY);
-                ctx.stroke();
-                ctx.restore();
-
-                // 6. High-Contrast Dark Total Summary Card + Savings Breakdown
-                curY += 24;
-                const totalSavedUsd = Math.max(0, totalOriginalUsd - grandTotalUsd);
-
-                drawRoundedRect(ctx, cardX + 36, curY, cardW - 72, 146, 24);
-                ctx.fillStyle = '#12101B';
-                ctx.fill();
-
-                // Left Column inside Dark Box: Original Total & Discount Saved
-                ctx.textAlign = 'left';
-                ctx.fillStyle = '#94A3B8';
-                ctx.font = '600 15px "Plus Jakarta Sans", sans-serif';
-                ctx.fillText(`Normal Subtotal: ${fmtUsd(totalOriginalUsd)}`, cardX + 60, curY + 42);
-
-                drawRoundedRect(ctx, cardX + 60, curY + 56, 235, 34, 10);
-                ctx.fillStyle = totalSavedUsd > 0 ? 'rgba(225, 35, 46, 0.22)' : 'rgba(255,255,255,0.08)';
-                ctx.fill();
-                ctx.fillStyle = totalSavedUsd > 0 ? '#FDA4AF' : '#CBD5E1';
-                ctx.font = '800 14px "JetBrains Mono", sans-serif';
-                ctx.fillText(totalSavedUsd > 0 ? `🎉 YOU SAVED: -${fmtUsd(totalSavedUsd)}` : `✓ 100% OFFICIAL PRICE`, cardX + 74, curY + 78);
-
-                ctx.fillStyle = '#D4FF33';
-                ctx.font = '700 13px "Kantumruy Pro", sans-serif';
-                ctx.fillText('តម្លៃសរុបរួមត្រូវទូទាត់ (GRAND TOTAL)', cardX + 60, curY + 120);
-
-                // Right Column inside Dark Box: Giant Neon Grand Total USD & KHR
-                ctx.textAlign = 'right';
-                ctx.fillStyle = '#D4FF33';
-                ctx.font = '900 40px "JetBrains Mono", monospace';
-                ctx.fillText(fmtUsd(grandTotalUsd), cardX + cardW - 60, curY + 68);
-
-                ctx.fillStyle = '#FFFFFF';
-                ctx.font = '800 22px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
-                ctx.fillText(`≈ ${fmtKhr(grandTotalUsd)}`, cardX + cardW - 60, curY + 114);
-
-                // 7. Bottom Verification Row: KHQR Mini Card + Official Verified Stamp
-                curY += 168;
-
-                // Mini KHQR Box
-                drawRoundedRect(ctx, cardX + 36, curY, 108, 108, 18);
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fill();
-                ctx.lineWidth = 3;
-                ctx.strokeStyle = '#E1232E';
-                ctx.stroke();
-
-                ctx.fillStyle = '#E1232E';
-                drawRoundedRect(ctx, cardX + 36, curY, 108, 24, { tl: 15, tr: 15, br: 0, bl: 0 });
-                ctx.fill();
-                ctx.textAlign = 'center';
-                ctx.fillStyle = '#FFFFFF';
-                ctx.font = '900 12px "Plus Jakarta Sans", sans-serif';
-                ctx.fillText('ABA / KHQR', cardX + 90, curY + 17);
-
-                const qrCanvasEl = document.querySelector('#dynamicKhqrCanvas canvas');
-                if (qrCanvasEl) {
-                    ctx.drawImage(qrCanvasEl, cardX + 52, curY + 28, 76, 74);
-                } else {
-                    ctx.fillStyle = '#0F172A';
-                    const qx = cardX + 56, qy = curY + 32;
-                    ctx.strokeRect(qx, qy, 20, 20);
-                    ctx.fillRect(qx + 5, qy + 5, 10, 10);
-                    ctx.strokeRect(qx + 48, qy, 20, 20);
-                    ctx.fillRect(qx + 53, qy + 5, 10, 10);
-                    ctx.strokeRect(qx, qy + 48, 20, 20);
-                    ctx.fillRect(qx + 5, qy + 53, 10, 10);
-                    ctx.fillRect(qx + 26, qy + 26, 16, 16);
-                }
-
-                // Store Thank You & Warranty Note in Center
-                ctx.textAlign = 'left';
-                ctx.fillStyle = '#0F172A';
-                ctx.font = '800 17px "Plus Jakarta Sans", sans-serif';
-                ctx.fillText('Thank you for shopping at SHSHOP PRO!', cardX + 162, curY + 32);
-
-                ctx.fillStyle = '#475569';
-                ctx.font = '600 14px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
-                ctx.fillText('សូមផ្ញើរូបវិក្កយបត្រនេះចូល Telegram ហាងដើម្បីបញ្ជាក់ការកម្មង់', cardX + 162, curY + 58);
-                ctx.fillStyle = '#4F46E5';
-                ctx.font = '800 13px "Plus Jakarta Sans", sans-serif';
-                ctx.fillText('✓ Official Store Warranty • Fast Delivery Across Cambodia', cardX + 162, curY + 84);
-
-                // Angled Verified Stamp on Bottom-Right
-                ctx.save();
-                ctx.translate(cardX + cardW - 115, curY + 54);
-                ctx.rotate(-0.12);
-                drawRoundedRect(ctx, -78, -30, 156, 60, 12);
-                ctx.strokeStyle = '#10B981';
-                ctx.lineWidth = 3;
-                ctx.stroke();
-                ctx.textAlign = 'center';
-                ctx.fillStyle = '#059669';
-                ctx.font = '900 13px "Plus Jakarta Sans", sans-serif';
-                ctx.fillText('VERIFIED ORDER', 0, -4);
-                ctx.font = '800 12px "Kantumruy Pro", sans-serif';
-                ctx.fillText('បញ្ជាក់ការកម្មង់ ✓', 0, 16);
-                ctx.restore();
-
-                latestReceiptCanvas = canvas;
-                if (typeof callback === 'function') callback(canvas);
-            };
-
-            window.closeModernReceiptModal = function() {
-                const modal = document.getElementById('modernReceiptModal');
-                if (modal) {
-                    modal.classList.add('hidden');
-                    modal.classList.remove('flex');
-                }
-            };
-
-            window.downloadModernReceiptImage = function() {
-                if (!latestReceiptCanvas) return;
-                const link = document.createElement('a');
-                link.download = `SHSHOP-PRO-Receipt-${latestOrderCode}.png`;
-                link.href = latestReceiptCanvas.toDataURL('image/png');
-                link.click();
-                if (typeof window.showToast === 'function') {
-                    window.showToast("Receipt image downloaded (PNG) ✓");
-                }
-            };
-
-            window.copyModernReceiptImage = function() {
-                if (!latestReceiptCanvas) return;
-                latestReceiptCanvas.toBlob(async (blob) => {
-                    try {
-                        if (navigator.clipboard && window.ClipboardItem) {
-                            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-                            const btnSpan = document.getElementById('btnCopyReceiptImgText');
-                            if (btnSpan) btnSpan.textContent = "Image Copied ✓";
-                            if (typeof window.showToast === 'function') {
-                                window.showToast("Receipt image copied! Paste (Ctrl+V) directly in Telegram ✓");
-                            }
-                            setTimeout(() => {
-                                if (btnSpan) btnSpan.textContent = "Copy Receipt Image";
-                            }, 2500);
-                        } else {
-                            window.downloadModernReceiptImage();
+        };
+
+        // Listen for Cloud updates to Shop Phone & Bot Config
+        setTimeout(() => {
+            try {
+                const app = getApp();
+                const db = getFirestore(app);
+                onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'storeMeta'), (snap) => {
+                    if (snap.exists()) {
+                        const data = snap.data();
+                        if (data.customShopPhone) {
+                            shopPhoneNumber = data.customShopPhone;
+                            localStorage.setItem(SHOP_PHONE_KEY, shopPhoneNumber);
+                            document.body.setAttribute('data-shop-phone', shopPhoneNumber);
                         }
-                    } catch (e) {
+                        if (data.receiptBotToken || data.receiptBotChatId) {
+                            localStorage.setItem(BOT_CONFIG_KEY, JSON.stringify({
+                                botToken: data.receiptBotToken || '',
+                                chatId: data.receiptBotChatId || ''
+                            }));
+                        }
+                    }
+                });
+            } catch (e) {}
+        }, 600);
+
+        function drawRoundedRect(ctx, x, y, width, height, radius) {
+            const r = typeof radius === 'number' ? { tl: radius, tr: radius, br: radius, bl: radius } : radius;
+            ctx.beginPath();
+            ctx.moveTo(x + r.tl, y);
+            ctx.lineTo(x + width - r.tr, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + r.tr);
+            ctx.lineTo(x + width, y + height - r.br);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - r.br, y + height);
+            ctx.lineTo(x + r.bl, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - r.bl);
+            ctx.lineTo(x, y + r.tl);
+            ctx.quadraticCurveTo(x, y, x + r.tl, y);
+            ctx.closePath();
+        }
+
+        function getCurrentCartItemsWithDiscounts() {
+            let discountsMap = {};
+            try {
+                const rawDisc = localStorage.getItem('shshop_pro_product_discounts_v1') || document.body.getAttribute('data-product-discounts');
+                if (rawDisc) discountsMap = JSON.parse(rawDisc) || {};
+            } catch (e) {}
+
+            let catalogProducts = [];
+            try {
+                const rawCat = localStorage.getItem('shshop_pro_saved_catalog_v1');
+                if (rawCat) {
+                    const parsed = JSON.parse(rawCat);
+                    if (Array.isArray(parsed.products)) catalogProducts = parsed.products;
+                }
+            } catch (e) {}
+
+            const items = [];
+            const cartRows = document.querySelectorAll('#cartItemsContainer > div');
+
+            cartRows.forEach(row => {
+                const titleEl = row.querySelector('h4, .font-bold, .font-extrabold');
+                const name = titleEl ? titleEl.textContent.trim() : '';
+                if (!name) return;
+
+                let qty = 1;
+                const qtySpans = Array.from(row.querySelectorAll('span')).filter(s => /^\d+$/.test(s.textContent.trim()));
+                if (qtySpans.length > 0) qty = parseInt(qtySpans[0].textContent.trim(), 10) || 1;
+
+                const matchedProd = catalogProducts.find(p => p.name.trim() === name);
+                let unitSalePrice = 0;
+                let unitOrigPrice = 0;
+                let discountPct = 0;
+
+                if (matchedProd) {
+                    const dInfo = discountsMap[matchedProd.id];
+                    discountPct = Number(dInfo?.percent || matchedProd.discountPercent || 0);
+                    unitOrigPrice = Number(dInfo?.originalPrice || matchedProd.originalPrice || matchedProd.price || 0);
+                    unitSalePrice = discountPct > 0
+                        ? Number((unitOrigPrice * (1 - discountPct / 100)).toFixed(2))
+                        : Number(matchedProd.price || unitOrigPrice);
+                } else {
+                    const priceMatch = (row.textContent || '').match(/\$(\d+(\.\d+)?)/);
+                    unitSalePrice = priceMatch ? parseFloat(priceMatch[1]) : 0;
+                    unitOrigPrice = unitSalePrice;
+                }
+
+                items.push({
+                    name,
+                    qty,
+                    unitSalePrice,
+                    unitOrigPrice,
+                    discountPct,
+                    lineTotalUsd: unitSalePrice * qty,
+                    lineOrigUsd: unitOrigPrice * qty
+                });
+            });
+
+            return items;
+        }
+
+        // ============================================================================
+        // DESIGN 1: CUSTOMER RECEIPT IMAGE (Bento-Ticket Style, NO KHQR, Language-Aware)
+        // ============================================================================
+        function buildCustomerReceiptCanvas(items, orderMeta) {
+            const isEn = isWebsiteEnglish();
+            const { custName, custPhone, custAddress, custNote, rate, fmtUsd, fmtKhr, dateStr, timeStr } = orderMeta;
+
+            const itemCardH = 110;
+            const canvasW = 820;
+            const canvasH = 825 + (items.length * itemCardH);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = canvasW;
+            canvas.height = canvasH;
+            const ctx = canvas.getContext('2d');
+
+            // Studio Gradient Backdrop
+            const bgGrad = ctx.createLinearGradient(0, 0, canvasW, canvasH);
+            bgGrad.addColorStop(0, '#1E1B4B');
+            bgGrad.addColorStop(0.5, '#312E81');
+            bgGrad.addColorStop(1, '#12101B');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, canvasW, canvasH);
+
+            const cardX = 44, cardY = 40, cardW = canvasW - 88, cardH = canvasH - 80;
+
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+            ctx.shadowBlur = 38;
+            ctx.shadowOffsetY = 16;
+            drawRoundedRect(ctx, cardX, cardY, cardW, cardH, 36);
+            ctx.fillStyle = '#F8FAFC';
+            ctx.fill();
+            ctx.restore();
+
+            // Top Header (#12101B)
+            const headerH = 180;
+            ctx.save();
+            drawRoundedRect(ctx, cardX, cardY, cardW, headerH, { tl: 36, tr: 36, br: 0, bl: 0 });
+            ctx.fillStyle = '#12101B';
+            ctx.fill();
+            drawRoundedRect(ctx, cardX + 40, cardY, cardW - 80, 6, { tl: 0, tr: 0, br: 6, bl: 6 });
+            ctx.fillStyle = '#D4FF33';
+            ctx.fill();
+            ctx.restore();
+
+            // Brand Logo + Shop Name
+            drawRoundedRect(ctx, cardX + 36, cardY + 30, 68, 68, 20);
+            ctx.fillStyle = '#D4FF33';
+            ctx.fill();
+            ctx.fillStyle = '#12101B';
+            ctx.textAlign = 'center';
+            ctx.font = '900 22px "Kantumruy Pro", sans-serif';
+            ctx.fillText('សីហា', cardX + 70, cardY + 72);
+
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '900 32px "Plus Jakarta Sans", sans-serif';
+            ctx.fillText('SHSHOP', cardX + 120, cardY + 58);
+            const shW = ctx.measureText('SHSHOP ').width;
+            ctx.fillStyle = '#D4FF33';
+            ctx.fillText('PRO', cardX + 120 + shW, cardY + 58);
+
+            ctx.fillStyle = '#CBD5E1';
+            ctx.font = '700 14px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(isEn ? 'SEYHA Modern Mobile & Accessories Shop' : 'សីហា ហាងលក់ទូរស័ព្ទដៃទំនើប និងគ្រឿងបន្លាស់គ្រប់ប្រភេទ', cardX + 120, cardY + 84);
+
+            // Shop Phone Pill right in Header
+            ctx.fillStyle = '#D4FF33';
+            ctx.font = '800 14px "JetBrains Mono", "Kantumruy Pro", sans-serif';
+            ctx.fillText(`📞 ${isEn ? 'Shop Tel:' : 'ទូរស័ព្ទហាង៖'} ${shopPhoneNumber}`, cardX + 120, cardY + 108);
+
+            // Right Header: Order Code & Date
+            drawRoundedRect(ctx, cardX + cardW - 236, cardY + 30, 200, 38, 12);
+            ctx.fillStyle = 'rgba(212, 255, 51, 0.15)';
+            ctx.fill();
+            ctx.strokeStyle = '#D4FF33';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#D4FF33';
+            ctx.font = '800 15px "JetBrains Mono", monospace';
+            ctx.fillText(`#${latestOrderCode}`, cardX + cardW - 136, cardY + 54);
+
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#E2E8F0';
+            ctx.font = '700 13px "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(`${dateStr} • ${timeStr}`, cardX + cardW - 36, cardY + 94);
+
+            // Header Sub-bar
+            ctx.fillStyle = '#1E1B4B';
+            ctx.fillRect(cardX, cardY + 128, cardW, 52);
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#D4FF33';
+            ctx.font = '800 14px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(isEn ? '● OFFICIAL CUSTOMER ORDER RECEIPT' : '● វិក្កយបត្រកម្មង់ទំនិញផ្លូវការ (OFFICIAL RECEIPT)', cardX + 36, cardY + 160);
+
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#A5B4FC';
+            ctx.font = '700 13px "JetBrains Mono", monospace';
+            ctx.fillText(`${isEn ? 'RATE' : 'អត្រាប្តូរប្រាក់'}: $1 = ${rate.toLocaleString()} ៛`, cardX + cardW - 36, cardY + 160);
+
+            // Customer Info Bento Grid
+            let curY = cardY + headerH + 22;
+            const bentoW = (cardW - 72 - 16) / 2;
+
+            // Box 1: Customer Name
+            drawRoundedRect(ctx, cardX + 36, curY, bentoW, 76, 18);
+            ctx.fillStyle = '#FFFFFF'; ctx.fill();
+            ctx.strokeStyle = '#E2E8F0'; ctx.lineWidth = 1.5; ctx.stroke();
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#6366F1';
+            ctx.font = '800 12px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(isEn ? '👤 CUSTOMER NAME' : '👤 ឈ្មោះអតិថិជន', cardX + 54, curY + 26);
+            ctx.fillStyle = '#0F172A';
+            ctx.font = '800 18px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(custName.slice(0, 26), cardX + 54, curY + 55);
+
+            // Box 2: Customer Phone
+            const rightBentoX = cardX + 36 + bentoW + 16;
+            drawRoundedRect(ctx, rightBentoX, curY, bentoW, 76, 18);
+            ctx.fillStyle = '#FFFFFF'; ctx.fill();
+            ctx.strokeStyle = '#E2E8F0'; ctx.stroke();
+            ctx.fillStyle = '#10B981';
+            ctx.font = '800 12px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(isEn ? '📞 CUSTOMER PHONE' : '📞 លេខទូរស័ព្ទភ្ញៀវ', rightBentoX + 18, curY + 26);
+            ctx.fillStyle = '#0F172A';
+            ctx.font = '900 18px "JetBrains Mono", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(custPhone.slice(0, 24), rightBentoX + 18, curY + 55);
+
+            curY += 90;
+
+            // Box 3: Delivery Address
+            drawRoundedRect(ctx, cardX + 36, curY, cardW - 72, 72, 18);
+            ctx.fillStyle = '#FFFFFF'; ctx.fill();
+            ctx.strokeStyle = '#E2E8F0'; ctx.stroke();
+            ctx.fillStyle = '#F59E0B';
+            ctx.font = '800 12px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(isEn ? '📍 DELIVERY LOCATION' : '📍 ទីតាំងដឹកជញ្ជូន', cardX + 54, curY + 25);
+            ctx.fillStyle = '#1E293B';
+            ctx.font = '700 16px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(custAddress.slice(0, 58), cardX + 54, curY + 52);
+
+            curY += 86;
+
+            // Box 4: Order Note
+            drawRoundedRect(ctx, cardX + 36, curY, cardW - 72, 62, 16);
+            ctx.fillStyle = '#EEF2FF'; ctx.fill();
+            ctx.strokeStyle = '#C7D2FE'; ctx.stroke();
+            ctx.fillStyle = '#4F46E5';
+            ctx.font = '800 12px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(isEn ? '📝 ORDER NOTE:' : '📝 ចំណាំបន្ថែម៖', cardX + 54, curY + 23);
+            ctx.fillStyle = '#312E81';
+            ctx.font = '600 15px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(custNote.slice(0, 62), cardX + 54, curY + 46);
+
+            // Items Section Header
+            curY += 84;
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#475569';
+            ctx.font = '800 13px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(isEn ? `ORDERED ITEMS (${items.length})` : `បញ្ជីទំនិញដែលបានកម្មង់ (${items.length} មុខ)`, cardX + 40, curY);
+            ctx.textAlign = 'right';
+            ctx.fillText(isEn ? 'PRICE & TOTAL' : 'តម្លៃរាយ និងតម្លៃសរុប', cardX + cardW - 40, curY);
+
+            curY += 14;
+            let totalOriginalUsd = 0;
+            let grandTotalUsd = 0;
+
+            items.forEach((item, index) => {
+                totalOriginalUsd += item.lineOrigUsd;
+                grandTotalUsd += item.lineTotalUsd;
+
+                drawRoundedRect(ctx, cardX + 36, curY, cardW - 72, 96, 20);
+                ctx.fillStyle = '#FFFFFF'; ctx.fill();
+                ctx.strokeStyle = '#E2E8F0'; ctx.lineWidth = 1.5; ctx.stroke();
+
+                drawRoundedRect(ctx, cardX + 52, curY + 19, 44, 58, 14);
+                ctx.fillStyle = '#12101B'; ctx.fill();
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#D4FF33';
+                ctx.font = '900 16px "JetBrains Mono", monospace';
+                ctx.fillText(String(index + 1).padStart(2, '0'), cardX + 74, curY + 54);
+
+                ctx.textAlign = 'left';
+                ctx.fillStyle = '#0F172A';
+                ctx.font = '800 19px "Plus Jakarta Sans", "Kantumruy Pro", sans-serif';
+                const cleanName = item.name.length > 28 ? item.name.slice(0, 28) + '...' : item.name;
+                ctx.fillText(cleanName, cardX + 112, curY + 39);
+
+                drawRoundedRect(ctx, cardX + 112, curY + 50, 80, 28, 8);
+                ctx.fillStyle = '#EEF2FF'; ctx.fill();
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#4F46E5';
+                ctx.font = '800 13px "Kantumruy Pro", "JetBrains Mono", sans-serif';
+                ctx.fillText(isEn ? `QTY: x${item.qty}` : `ចំនួន: x${item.qty}`, cardX + 152, curY + 69);
+
+                if (item.discountPct > 0) {
+                    drawRoundedRect(ctx, cardX + 200, curY + 50, 92, 28, 8);
+                    ctx.fillStyle = '#E1232E'; ctx.fill();
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.font = '900 12px "Plus Jakarta Sans", sans-serif';
+                    ctx.fillText(`-${item.discountPct}% OFF`, cardX + 246, curY + 69);
+
+                    const origTxt = fmtUsd(item.unitOrigPrice);
+                    ctx.textAlign = 'left';
+                    ctx.fillStyle = '#94A3B8';
+                    ctx.font = '600 13px "JetBrains Mono", sans-serif';
+                    ctx.fillText(origTxt, cardX + 302, curY + 69);
+                    const ow = ctx.measureText(origTxt).width;
+                    ctx.strokeStyle = '#EF4444';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(cardX + 300, curY + 64);
+                    ctx.lineTo(cardX + 304 + ow, curY + 64);
+                    ctx.stroke();
+                } else {
+                    ctx.textAlign = 'left';
+                    ctx.fillStyle = '#64748B';
+                    ctx.font = '600 13px "JetBrains Mono", sans-serif';
+                    ctx.fillText(`${fmtUsd(item.unitSalePrice)} / ${isEn ? 'unit' : '១ឈុត'}`, cardX + 202, curY + 69);
+                }
+
+                ctx.textAlign = 'right';
+                ctx.fillStyle = '#E1232E';
+                ctx.font = '900 23px "JetBrains Mono", monospace';
+                ctx.fillText(fmtUsd(item.lineTotalUsd), cardX + cardW - 54, curY + 43);
+
+                ctx.fillStyle = '#475569';
+                ctx.font = '700 14px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+                ctx.fillText(`≈ ${fmtKhr(item.lineTotalUsd)}`, cardX + cardW - 54, curY + 71);
+
+                curY += itemCardH;
+            });
+
+            // Perforated Divider
+            curY += 6;
+            ctx.save();
+            ctx.setLineDash([10, 8]);
+            ctx.strokeStyle = '#CBD5E1';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(cardX + 36, curY);
+            ctx.lineTo(cardX + cardW - 36, curY);
+            ctx.stroke();
+            ctx.restore();
+
+            // Dark Summary Box
+            curY += 20;
+            const totalSavedUsd = Math.max(0, totalOriginalUsd - grandTotalUsd);
+            drawRoundedRect(ctx, cardX + 36, curY, cardW - 72, 142, 24);
+            ctx.fillStyle = '#12101B';
+            ctx.fill();
+
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#94A3B8';
+            ctx.font = '600 15px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(`${isEn ? 'Normal Subtotal' : 'តម្លៃដើមសរុប'}: ${fmtUsd(totalOriginalUsd)}`, cardX + 60, curY + 40);
+
+            drawRoundedRect(ctx, cardX + 60, curY + 54, 250, 34, 10);
+            ctx.fillStyle = totalSavedUsd > 0 ? 'rgba(225, 35, 46, 0.25)' : 'rgba(255,255,255,0.08)';
+            ctx.fill();
+            ctx.fillStyle = totalSavedUsd > 0 ? '#FDA4AF' : '#CBD5E1';
+            ctx.font = '800 14px "Kantumruy Pro", "JetBrains Mono", sans-serif';
+            ctx.fillText(
+                totalSavedUsd > 0
+                    ? (isEn ? `🎉 YOU SAVED: -${fmtUsd(totalSavedUsd)}` : `🎉 ចំណេញបាន៖ -${fmtUsd(totalSavedUsd)}`)
+                    : (isEn ? '✓ 100% OFFICIAL WARRANTY' : '✓ ធានាទំនិញសុទ្ធ 100% ពីហាង'),
+                cardX + 74, curY + 76
+            );
+
+            ctx.fillStyle = '#D4FF33';
+            ctx.font = '700 14px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(isEn ? 'GRAND TOTAL TO PAY' : 'តម្លៃសរុបរួមត្រូវទូទាត់ (GRAND TOTAL)', cardX + 60, curY + 118);
+
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#D4FF33';
+            ctx.font = '900 38px "JetBrains Mono", monospace';
+            ctx.fillText(fmtUsd(grandTotalUsd), cardX + cardW - 60, curY + 66);
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '800 21px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(`≈ ${fmtKhr(grandTotalUsd)}`, cardX + cardW - 60, curY + 112);
+
+            // Clean Footer Contact & Warranty Banner (NO KHQR Scan Box)
+            curY += 162;
+            drawRoundedRect(ctx, cardX + 36, curY, cardW - 245, 86, 18);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fill();
+            ctx.strokeStyle = '#E2E8F0';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#0F172A';
+            ctx.font = '800 16px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(isEn ? 'Thank you for shopping at SHSHOP PRO!' : 'សូមអរគុណសម្រាប់ការគាំទ្រហាង សីហា (SHSHOP PRO)!', cardX + 54, curY + 30);
+
+            ctx.fillStyle = '#4F46E5';
+            ctx.font = '800 15px "JetBrains Mono", "Kantumruy Pro", sans-serif';
+            ctx.fillText(`📞 ${isEn ? 'Hotline:' : 'ទំនាក់ទំនងហាង៖'} ${shopPhoneNumber}`, cardX + 54, curY + 55);
+
+            ctx.fillStyle = '#64748B';
+            ctx.font = '600 12px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(isEn ? 'Please send this receipt to our Telegram to confirm delivery.' : 'សូមផ្ញើរូបវិក្កយបត្រនេះចូល Telegram ហាងដើម្បីបញ្ជាក់ការដឹកជញ្ជូន', cardX + 54, curY + 75);
+
+            // Verified Stamp on Right
+            ctx.save();
+            ctx.translate(cardX + cardW - 115, curY + 44);
+            ctx.rotate(-0.1);
+            drawRoundedRect(ctx, -82, -32, 164, 64, 14);
+            ctx.strokeStyle = '#10B981';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#059669';
+            ctx.font = '900 13px "Plus Jakarta Sans", sans-serif';
+            ctx.fillText('VERIFIED ORDER', 0, -4);
+            ctx.font = '800 13px "Kantumruy Pro", sans-serif';
+            ctx.fillText(isEn ? 'OFFICIAL RECEIPT ✓' : 'បញ្ជាក់ការកម្មង់ ✓', 0, 18);
+            ctx.restore();
+
+            return canvas;
+        }
+
+        // ============================================================================
+        // DESIGN 2: OWNER TELEGRAM BOT DISPATCH CARD (Dark Merchant Dashboard Layout)
+        // ============================================================================
+        function buildOwnerTelegramOrderCanvas(items, orderMeta) {
+            const { custName, custPhone, custAddress, custNote, rate, fmtUsd, fmtKhr, dateStr, timeStr } = orderMeta;
+
+            const rowH = 92;
+            const canvasW = 860;
+            const canvasH = 740 + (items.length * rowH);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = canvasW;
+            canvas.height = canvasH;
+            const ctx = canvas.getContext('2d');
+
+            // Dark Obsidian Merchant Dashboard Background
+            ctx.fillStyle = '#090A0F';
+            ctx.fillRect(0, 0, canvasW, canvasH);
+
+            const pad = 32;
+            const boxW = canvasW - (pad * 2);
+
+            // 1. Top Neon Alert Banner ("NEW CUSTOMER ORDER FOR OWNER")
+            drawRoundedRect(ctx, pad, pad, boxW, 118, 24);
+            ctx.fillStyle = '#181826';
+            ctx.fill();
+            ctx.strokeStyle = '#D4FF33';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            drawRoundedRect(ctx, pad + 24, pad + 22, 190, 34, 10);
+            ctx.fillStyle = '#D4FF33';
+            ctx.fill();
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#090A0F';
+            ctx.font = '900 14px "Plus Jakarta Sans", sans-serif';
+            ctx.fillText('🔔 NEW ORDER ALERT', pad + 119, pad + 44);
+
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '900 26px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(`ប័ណ្ណកម្មង់ទំនិញថ្មី #${latestOrderCode} (សម្រាប់ម្ចាស់ហាង)`, pad + 24, pad + 92);
+
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#A5B4FC';
+            ctx.font = '700 15px "JetBrains Mono", monospace';
+            ctx.fillText(`${dateStr} | ${timeStr}`, pad + boxW - 24, pad + 45);
+            ctx.fillStyle = '#D4FF33';
+            ctx.font = '800 15px "Kantumruy Pro", sans-serif';
+            ctx.fillText(`ចំនួនសរុប៖ ${items.reduce((s, i) => s + i.qty, 0)} ទំនិញ`, pad + boxW - 24, pad + 90);
+
+            // 2. Giant High-Visibility Customer Contact & Delivery Dispatch Panel
+            let curY = pad + 138;
+            drawRoundedRect(ctx, pad, curY, boxW, 220, 24);
+            ctx.fillStyle = '#12131F';
+            ctx.fill();
+            ctx.strokeStyle = '#312E81';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Customer Phone Highlight Strip (Easy for Owner to Call Immediately)
+            drawRoundedRect(ctx, pad + 20, curY + 20, boxW - 40, 66, 16);
+            ctx.fillStyle = '#064E3B';
+            ctx.fill();
+            ctx.strokeStyle = '#10B981';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#A7F3D0';
+            ctx.font = '800 14px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText('📞 លេខទូរស័ព្ទភ្ញៀវ (CALL CUSTOMER)៖', pad + 38, curY + 44);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '900 26px "JetBrains Mono", monospace';
+            ctx.fillText(custPhone, pad + 38, curY + 74);
+
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#D4FF33';
+            ctx.font = '800 18px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(`👤 ភ្ញៀវ៖ ${custName.slice(0, 26)}`, pad + boxW - 38, curY + 62);
+
+            // Delivery Address & Notes inside Dispatch Box
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#FBBF24';
+            ctx.font = '800 14px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText('📍 ទីតាំងដឹកជញ្ជូន (DELIVERY ADDRESS)៖', pad + 26, curY + 118);
+            ctx.fillStyle = '#F8FAFC';
+            ctx.font = '700 18px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(custAddress.slice(0, 62), pad + 26, curY + 146);
+
+            ctx.fillStyle = '#818CF8';
+            ctx.font = '800 14px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText('📝 ចំណាំរបស់ភ្ញៀវ (CUSTOMER NOTE)៖', pad + 26, curY + 178);
+            ctx.fillStyle = '#CBD5E1';
+            ctx.font = '600 16px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(custNote.slice(0, 65), pad + 26, curY + 204);
+
+            // 3. Owner Packing Checklist Table
+            curY += 242;
+            ctx.fillStyle = '#94A3B8';
+            ctx.font = '800 13px "Plus Jakarta Sans", "Kantumruy Pro", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('☑️ បញ្ជីទំនិញត្រូវរៀបចំវេចខ្ចប់ (PACKING CHECKLIST)', pad + 10, curY);
+            ctx.textAlign = 'right';
+            ctx.fillText('QTY × UNIT PRICE = TOTAL', pad + boxW - 10, curY);
+
+            curY += 14;
+            let totalOriginalUsd = 0;
+            let grandTotalUsd = 0;
+
+            items.forEach((item, idx) => {
+                totalOriginalUsd += item.lineOrigUsd;
+                grandTotalUsd += item.lineTotalUsd;
+
+                drawRoundedRect(ctx, pad, curY, boxW, 80, 16);
+                ctx.fillStyle = '#161826';
+                ctx.fill();
+                ctx.strokeStyle = '#262940';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // Checkbox square for owner packing
+                drawRoundedRect(ctx, pad + 20, curY + 22, 36, 36, 8);
+                ctx.strokeStyle = '#D4FF33';
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#D4FF33';
+                ctx.font = '900 14px "JetBrains Mono", monospace';
+                ctx.fillText(String(idx + 1), pad + 38, curY + 45);
+
+                // Item Name
+                ctx.textAlign = 'left';
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '800 19px "Plus Jakarta Sans", "Kantumruy Pro", sans-serif';
+                ctx.fillText(item.name.slice(0, 32), pad + 72, curY + 36);
+
+                // Unit & Discount breakdown
+                ctx.fillStyle = '#94A3B8';
+                ctx.font = '600 14px "JetBrains Mono", "Kantumruy Pro", sans-serif';
+                const discText = item.discountPct > 0 ? ` (បញ្ចុះ -${item.discountPct}% ពីតម្លៃដើម ${fmtUsd(item.unitOrigPrice)})` : '';
+                ctx.fillText(`តម្លៃរាយ៖ ${fmtUsd(item.unitSalePrice)}${discText}`, pad + 72, curY + 62);
+
+                // Big Quantity Badge + Line Total on Right
+                drawRoundedRect(ctx, pad + boxW - 250, curY + 20, 82, 40, 10);
+                ctx.fillStyle = '#4F46E5';
+                ctx.fill();
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '900 18px "JetBrains Mono", monospace';
+                ctx.fillText(`x${item.qty}`, pad + boxW - 209, curY + 46);
+
+                ctx.textAlign = 'right';
+                ctx.fillStyle = '#D4FF33';
+                ctx.font = '900 22px "JetBrains Mono", monospace';
+                ctx.fillText(fmtUsd(item.lineTotalUsd), pad + boxW - 24, curY + 38);
+                ctx.fillStyle = '#CBD5E1';
+                ctx.font = '700 14px "Kantumruy Pro", sans-serif';
+                ctx.fillText(fmtKhr(item.lineTotalUsd), pad + boxW - 24, curY + 62);
+
+                curY += rowH;
+            });
+
+            // 4. Bottom Amount to Collect Summary Banner for Owner
+            curY += 12;
+            const totalSaved = Math.max(0, totalOriginalUsd - grandTotalUsd);
+            drawRoundedRect(ctx, pad, curY, boxW, 148, 24);
+            ctx.fillStyle = '#D4FF33';
+            ctx.fill();
+
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#090A0F';
+            ctx.font = '900 16px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText('💰 ទឹកប្រាក់សរុបត្រូវប្រមូលពីភ្ញៀវ (AMOUNT TO COLLECT)', pad + 28, curY + 40);
+
+            ctx.font = '700 15px "Kantumruy Pro", "JetBrains Mono", sans-serif';
+            ctx.fillText(`តម្លៃដើម៖ ${fmtUsd(totalOriginalUsd)}   |   បញ្ចុះតម្លៃសរុប៖ -${fmtUsd(totalSaved)}`, pad + 28, curY + 74);
+
+            ctx.font = '800 15px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(`📞 លេខទូរស័ព្ទហាង៖ ${shopPhoneNumber}`, pad + 28, curY + 114);
+
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#E1232E';
+            ctx.font = '900 44px "JetBrains Mono", monospace';
+            ctx.fillText(fmtUsd(grandTotalUsd), pad + boxW - 28, curY + 68);
+
+            ctx.fillStyle = '#090A0F';
+            ctx.font = '900 24px "Kantumruy Pro", "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(`≈ ${fmtKhr(grandTotalUsd)}`, pad + boxW - 28, curY + 116);
+
+            return canvas;
+        }
+
+        // Automatically Send the Owner Dispatch Card Image + Caption to Your Telegram Bot
+        async function sendOwnerOrderCardToTelegramBot(ownerCanvas, items, orderMeta) {
+            const { botToken, chatId } = getTelegramBotCredentials();
+            if (!botToken || !chatId || !ownerCanvas) return;
+
+            const { custName, custPhone, custAddress, custNote, fmtUsd, fmtKhr } = orderMeta;
+            const grandTotalUsd = items.reduce((sum, i) => sum + i.lineTotalUsd, 0);
+
+            const itemLines = items.map((it, i) =>
+                `${i + 1}. ${it.name} (x${it.qty}) = ${fmtUsd(it.lineTotalUsd)}${it.discountPct > 0 ? ` [-${it.discountPct}%]` : ''}`
+            ).join('\n');
+
+            const caption =
+                `🔔 <b>មានការកម្មង់ទំនិញថ្មី (#${latestOrderCode})</b>\n` +
+                `━━━━━━━━━━━━━━━━━━\n` +
+                `👤 <b>ឈ្មោះភ្ញៀវ៖</b> ${custName}\n` +
+                `📞 <b>លេខទូរស័ព្ទ៖</b> <code>${custPhone}</code>\n` +
+                `📍 <b>ទីតាំងដឹក៖</b> ${custAddress}\n` +
+                `📝 <b>ចំណាំ៖</b> ${custNote}\n` +
+                `━━━━━━━━━━━━━━━━━━\n` +
+                `🛒 <b>ទំនិញកម្មង់៖</b>\n${itemLines}\n` +
+                `━━━━━━━━━━━━━━━━━━\n` +
+                `💰 <b>សរុបត្រូវទូទាត់៖ ${fmtUsd(grandTotalUsd)} (≈ ${fmtKhr(grandTotalUsd)})</b>`;
+
+            ownerCanvas.toBlob(async (blob) => {
+                if (!blob) return;
+                try {
+                    const formData = new FormData();
+                    formData.append('chat_id', chatId);
+                    formData.append('photo', blob, `Owner-Order-${latestOrderCode}.png`);
+                    formData.append('caption', caption);
+                    formData.append('parse_mode', 'HTML');
+
+                    await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                } catch (e) {}
+            }, 'image/png');
+        }
+
+        function renderBothReceiptsAndShowPreview(sendToBot = false) {
+            const items = getCurrentCartItemsWithDiscounts();
+            if (items.length === 0) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast(isWebsiteEnglish() ? "Please add products to cart first!" : "សូមជ្រើសរើសទំនិញចូលកន្ត្រកជាមុនសិន!");
+                }
+                return;
+            }
+
+            const isEn = isWebsiteEnglish();
+            const custName = (document.getElementById('custName')?.value || '').trim() || (isEn ? 'Walk-in / Telegram Customer' : 'អតិថិជនទូទៅ (Telegram)');
+            const custPhone = (document.getElementById('custPhone')?.value || '').trim() || (isEn ? 'Not Provided' : 'មិនបានបញ្ជាក់លេខទូរស័ព្ទ');
+            const custAddress = (document.getElementById('custAddress')?.value || '').trim() || (isEn ? 'Store Pickup / Telegram Location' : 'ទទួលនៅហាង ឬផ្ញើទីតាំងតាម Telegram');
+            const custNote = (document.getElementById('custNote')?.value || '').trim() || (isEn ? '100% Official Store Warranty' : 'ធានាទំនិញសុទ្ធ 100% ពីហាង');
+
+            const rate = Number(window.KHR_RATE || 4050);
+            const fmtUsd = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const fmtKhr = (usd) => (Math.round((Number(usd || 0) * rate) / 100) * 100).toLocaleString('en-US') + ' ៛';
+
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+            const orderMeta = { custName, custPhone, custAddress, custNote, rate, fmtUsd, fmtKhr, dateStr, timeStr };
+
+            // 1. Build Customer Receipt (No KHQR, Language-Matched)
+            latestCustomerCanvas = buildCustomerReceiptCanvas(items, orderMeta);
+            // 2. Build Owner Telegram Dispatch Card (Dark Command-Center Design)
+            latestOwnerBotCanvas = buildOwnerTelegramOrderCanvas(items, orderMeta);
+
+            syncReceiptModalLanguage();
+            updateDisplayedPreviewCanvas();
+
+            if (sendToBot) {
+                sendOwnerOrderCardToTelegramBot(latestOwnerBotCanvas, items, orderMeta);
+            }
+        }
+
+        function updateDisplayedPreviewCanvas() {
+            const previewImg = document.getElementById('modernReceiptPreviewImg');
+            const targetCanvas = activePreviewType === 'owner' ? latestOwnerBotCanvas : latestCustomerCanvas;
+            if (previewImg && targetCanvas) {
+                previewImg.src = targetCanvas.toDataURL('image/png');
+            }
+        }
+
+        window.switchReceiptPreviewType = function(type) {
+            activePreviewType = type;
+            const tabCust = document.getElementById('tabPreviewCust');
+            const tabOwn = document.getElementById('tabPreviewOwner');
+            if (type === 'owner') {
+                if (tabOwn) tabOwn.className = "px-2 py-0.5 rounded-md bg-indigo-600 text-white cursor-pointer";
+                if (tabCust) tabCust.className = "px-2 py-0.5 rounded-md text-slate-600 dark:text-slate-300 cursor-pointer";
+            } else {
+                if (tabCust) tabCust.className = "px-2 py-0.5 rounded-md bg-indigo-600 text-white cursor-pointer";
+                if (tabOwn) tabOwn.className = "px-2 py-0.5 rounded-md text-slate-600 dark:text-slate-300 cursor-pointer";
+            }
+            updateDisplayedPreviewCanvas();
+        };
+
+        window.closeModernReceiptModal = function() {
+            const modal = document.getElementById('modernReceiptModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        };
+
+        window.downloadModernReceiptImage = function() {
+            const targetCanvas = activePreviewType === 'owner' ? latestOwnerBotCanvas : latestCustomerCanvas;
+            if (!targetCanvas) return;
+            const link = document.createElement('a');
+            link.download = `SHSHOP-PRO-${activePreviewType === 'owner' ? 'OwnerOrder' : 'Receipt'}-${latestOrderCode}.png`;
+            link.href = targetCanvas.toDataURL('image/png');
+            link.click();
+            if (typeof window.showToast === 'function') {
+                window.showToast(isWebsiteEnglish() ? "Receipt image downloaded ✓" : "បានទាញយករូបវិក្កយបត្ររួចរាល់ ✓");
+            }
+        };
+
+        window.copyModernReceiptImage = function() {
+            const targetCanvas = activePreviewType === 'owner' ? latestOwnerBotCanvas : latestCustomerCanvas;
+            if (!targetCanvas) return;
+            targetCanvas.toBlob(async (blob) => {
+                try {
+                    if (navigator.clipboard && window.ClipboardItem) {
+                        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                        const btnSpan = document.getElementById('btnCopyReceiptImgText');
+                        if (btnSpan) btnSpan.textContent = isWebsiteEnglish() ? "Image Copied ✓" : "បានចម្លងរូបភាព ✓";
+                        if (typeof window.showToast === 'function') {
+                            window.showToast(isWebsiteEnglish()
+                                ? "Receipt image copied! Paste (Ctrl+V) in Telegram ✓"
+                                : "បានចម្លងរូបវិក្កយបត្រ! អាច Paste (Ctrl+V) ក្នុង Telegram បានភ្លាមៗ ✓");
+                        }
+                        setTimeout(() => syncReceiptModalLanguage(), 2500);
+                    } else {
                         window.downloadModernReceiptImage();
                     }
-                }, 'image/png');
+                } catch (e) {
+                    window.downloadModernReceiptImage();
+                }
+            }, 'image/png');
+        };
+
+        // Hook into "ចម្លងអត្ថបទវិក្កយបត្រ (Copy)" AND Telegram Order Submit Buttons
+        function hookOrderAndCopyButtons() {
+            const origCopyFn = window.copyInvoiceToClipboard;
+            window.copyInvoiceToClipboard = function() {
+                if (typeof origCopyFn === 'function') {
+                    try { origCopyFn(); } catch (e) {}
+                }
+                latestOrderCode = 'SH-' + Math.floor(100000 + Math.random() * 900000);
+                activePreviewType = 'customer';
+                renderBothReceiptsAndShowPreview(true); // Generates both & sends Owner Dispatch Card to Telegram Bot!
+
+                const modal = document.getElementById('modernReceiptModal');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    modal.classList.add('flex');
+                }
+                window.copyModernReceiptImage();
             };
+        }
 
-            // Hook into "ចម្លងអត្ថបទវិក្កយបត្រ (Copy)" Button
-            function hookCopyInvoiceButton() {
-                const origCopyFn = window.copyInvoiceToClipboard;
-                window.copyInvoiceToClipboard = function() {
-                    if (typeof origCopyFn === 'function') {
-                        try { origCopyFn(); } catch (e) {}
-                    }
-                    window.generateModernReceiptCanvas((canvas) => {
-                        const previewImg = document.getElementById('modernReceiptPreviewImg');
-                        if (previewImg) {
-                            previewImg.src = canvas.toDataURL('image/png');
-                        }
-                        const modal = document.getElementById('modernReceiptModal');
-                        if (modal) {
-                            modal.classList.remove('hidden');
-                            modal.classList.add('flex');
-                        }
-                        window.copyModernReceiptImage();
-                    });
-                };
-            }
-
-            window.addEventListener('DOMContentLoaded', () => setTimeout(hookCopyInvoiceButton, 100));
-            setTimeout(hookCopyInvoiceButton, 200);
-        })();
+        window.addEventListener('DOMContentLoaded', () => setTimeout(hookOrderAndCopyButtons, 100));
+        setTimeout(hookOrderAndCopyButtons, 200);
     </script>
 </body></html>
