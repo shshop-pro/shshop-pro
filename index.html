@@ -9275,5 +9275,199 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         window.addEventListener('DOMContentLoaded', () => setTimeout(hookCopyInvoiceButtonOnlyForCustomerPopup, 100));
         setTimeout(hookCopyInvoiceButtonOnlyForCustomerPopup, 200);
     </script>
-	
+	<!-- Safe Discount Display for: 1. Product Popup, 2. Cart Drawer, 3. Invoice Text Preview -->
+    <script>
+        (function() {
+            const DISCOUNT_STORAGE_KEY = 'shshop_pro_product_discounts_v1';
+            const CATALOG_STORAGE_KEY = 'shshop_pro_saved_catalog_v1';
+
+            function getSafeDiscountsMap() {
+                let map = {};
+                try {
+                    const bodyAttr = document.body.getAttribute('data-product-discounts');
+                    if (bodyAttr) map = JSON.parse(bodyAttr) || {};
+                } catch (e) {}
+                try {
+                    const raw = localStorage.getItem(DISCOUNT_STORAGE_KEY);
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        if (parsed && typeof parsed === 'object') {
+                            map = Object.assign({}, map, parsed);
+                        }
+                    }
+                } catch (e) {}
+                return map;
+            }
+
+            function getSafeCatalog() {
+                try {
+                    const raw = localStorage.getItem(CATALOG_STORAGE_KEY);
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        if (parsed && Array.isArray(parsed.products)) return parsed.products;
+                    }
+                } catch (e) {}
+                return [];
+            }
+
+            function fmtUsd(n) {
+                return '$' + (Number(n) || 0).toFixed(2);
+            }
+
+            function fmtKhr(usd) {
+                const rate = Number(window.KHR_RATE || 4050);
+                const khr = Math.round(((Number(usd) || 0) * rate) / 100) * 100;
+                return khr.toLocaleString('en-US') + ' ៛';
+            }
+
+            function findDiscountByNameOrId(prodId, prodName) {
+                try {
+                    const discountsMap = getSafeDiscountsMap();
+                    const catalog = getSafeCatalog();
+                    let matched = null;
+
+                    if (prodId) {
+                        matched = catalog.find(function(p) { return p.id === prodId; });
+                    }
+                    if (!matched && prodName) {
+                        const clean = prodName.replace(/\(-\d+%\)/g, '').trim().toLowerCase();
+                        matched = catalog.find(function(p) {
+                            return (p.name || '').trim().toLowerCase() === clean;
+                        });
+                    }
+
+                    const id = prodId || (matched ? matched.id : null);
+                    const dInfo = id ? discountsMap[id] : null;
+                    const pct = Number((dInfo && dInfo.percent) || (matched && matched.discountPercent) || 0);
+                    if (pct <= 0) return null;
+
+                    const origPrice = Number((dInfo && dInfo.originalPrice) || (matched && matched.originalPrice) || (matched && matched.price) || 0);
+                    if (origPrice <= 0) return null;
+
+                    const salePrice = Number((origPrice * (1 - pct / 100)).toFixed(2));
+                    return { id: id, percent: pct, originalPrice: origPrice, salePrice: salePrice };
+                } catch (e) {
+                    return null;
+                }
+            }
+
+            // 1. Safely update Product Lightbox Popup
+            function safeUpdateProductPopup() {
+                try {
+                    const lbModal = document.getElementById('lightboxModal');
+                    if (!lbModal || lbModal.classList.contains('hidden')) return;
+
+                    const titleEl = document.getElementById('lightboxTitle');
+                    const priceUsdEl = document.getElementById('lightboxPriceUSD');
+                    const priceKhrEl = document.getElementById('lightboxPriceKHR');
+                    const imgEl = document.getElementById('lightboxImg');
+                    const imgBox = imgEl ? imgEl.parentElement : null;
+
+                    if (imgBox) {
+                        imgBox.classList.add('relative');
+                        const oldBadges = imgBox.querySelectorAll('.sh-lb-disc-badge');
+                        oldBadges.forEach(function(b) { b.remove(); });
+                    }
+
+                    const prodName = titleEl ? titleEl.textContent.trim() : '';
+                    const info = findDiscountByNameOrId(null, prodName);
+                    if (!info) return;
+
+                    if (imgBox) {
+                        const b = document.createElement('div');
+                        b.className = 'sh-discount-corner-badge sh-lb-disc-badge';
+                        b.innerHTML = '<i class="ph-fill ph-lightning"></i><span>-' + info.percent + '%</span>';
+                        imgBox.appendChild(b);
+                    }
+
+                    if (priceUsdEl) {
+                        priceUsdEl.innerHTML =
+                            '<span class="sh-sale-price-highlight">' + fmtUsd(info.salePrice) + '</span> ' +
+                            '<span class="sh-normal-price-cut text-sm">' + fmtUsd(info.originalPrice) + '</span> ' +
+                            '<span class="ml-1.5 px-2 py-0.5 rounded-full bg-rose-600 text-white text-xs font-black">-' + info.percent + '%</span>';
+                    }
+                    if (priceKhrEl) {
+                        priceKhrEl.textContent = '≈ ' + fmtKhr(info.salePrice);
+                    }
+                } catch (e) {}
+            }
+
+            // 2. Safely update Cart Drawer Items & "🧾 វិក្កយបត្រ SHSHOP PRO" Text Box
+            function safeUpdateCartAndInvoiceText() {
+                try {
+                    const cartContainer = document.getElementById('cartItemsContainer');
+                    if (!cartContainer) return;
+
+                    const rows = cartContainer.children;
+                    if (!rows || rows.length === 0) return;
+
+                    let totalOrig = 0;
+                    let totalSale = 0;
+
+                    for (let i = 0; i < rows.length; i++) {
+                        const row = rows[i];
+                        const titleEl = row.querySelector('h4');
+                        if (!titleEl) continue;
+
+                        const baseName = titleEl.getAttribute('data-orig-title') || titleEl.textContent.replace(/\s*\(-\d+%\)/g, '').trim();
+                        titleEl.setAttribute('data-orig-title', baseName);
+
+                        let qty = 1;
+                        const spans = row.querySelectorAll('span');
+                        for (let s = 0; s < spans.length; s++) {
+                            const txt = spans[s].textContent.trim();
+                            if (/^\d+$/.test(txt)) {
+                                qty = parseInt(txt, 10) || 1;
+                                break;
+                            }
+                        }
+
+                        const info = findDiscountByNameOrId(null, baseName);
+                        if (info) {
+                            totalOrig += info.originalPrice * qty;
+                            totalSale += info.salePrice * qty;
+
+                            // Show (-40%) next to item title in Cart
+                            titleEl.innerHTML = baseName + ' <span class="text-rose-600 dark:text-[#D4FF33] text-[11px] font-black">(-' + info.percent + '%)</span>';
+
+                            // Show discounted unit price + strikethrough normal price below title
+                            const priceLine = titleEl.nextElementSibling;
+                            if (priceLine) {
+                                priceLine.innerHTML =
+                                    '<span class="sh-sale-price-highlight font-extrabold">' + fmtUsd(info.salePrice) + '</span> ' +
+                                    '<span class="sh-normal-price-cut text-[11px]">' + fmtUsd(info.originalPrice) + '</span>';
+                            }
+                        }
+                    }
+
+                    // 3. Append discount percentage into "🧾 វិក្កយបត្រ SHSHOP PRO" preview box
+                    const invoiceBox = document.getElementById('invoicePreview') || document.getElementById('invoicePreviewText');
+                    if (invoiceBox && invoiceBox.textContent) {
+                        let lines = invoiceBox.textContent.split('\n');
+                        const updatedLines = lines.map(function(line) {
+                            // Match product lines like "• 1. Product Name x1 = $10.00"
+                            const prodCheck = getSafeCatalog();
+                            for (let p = 0; p < prodCheck.length; p++) {
+                                const pName = prodCheck[p].name;
+                                if (pName && line.includes(pName) && !line.includes('OFF)')) {
+                                    const d = findDiscountByNameOrId(prodCheck[p].id, pName);
+                                    if (d) {
+                                        return line + ' (-' + d.percent + '% OFF | តម្លៃដើម ' + fmtUsd(d.originalPrice) + ')';
+                                    }
+                                }
+                            }
+                            return line;
+                        });
+                        invoiceBox.textContent = updatedLines.join('\n');
+                    }
+                } catch (e) {}
+            }
+
+            // Trigger safely after clicks without interfering with any native button handlers
+            document.addEventListener('click', function() {
+                setTimeout(safeUpdateProductPopup, 80);
+                setTimeout(safeUpdateCartAndInvoiceText, 80);
+            });
+        })();
+    </script>
 </body></html>
