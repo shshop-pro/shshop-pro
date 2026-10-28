@@ -9275,17 +9275,27 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         window.addEventListener('DOMContentLoaded', () => setTimeout(hookCopyInvoiceButtonOnlyForCustomerPopup, 100));
         setTimeout(hookCopyInvoiceButtonOnlyForCustomerPopup, 200);
     </script>
-	<!-- Safe Discount Display for: 1. Product Popup, 2. Cart Drawer, 3. Invoice Text Preview -->
+	<!-- Complete Discount % & Sale Price Sync for: 1. Product Popup, 2. Cart Drawer, 3. Invoice Preview -->
     <script>
         (function() {
             const DISCOUNT_STORAGE_KEY = 'shshop_pro_product_discounts_v1';
-            const CATALOG_STORAGE_KEY = 'shshop_pro_saved_catalog_v1';
+            let activeLightboxProdId = null;
 
-            function getSafeDiscountsMap() {
+            function fmtUsd(n) {
+                return '$' + (Number(n) || 0).toFixed(2);
+            }
+
+            function fmtKhr(usd) {
+                const rate = Number(window.KHR_RATE || 4050);
+                const khr = Math.round(((Number(usd) || 0) * rate) / 100) * 100;
+                return khr.toLocaleString('en-US') + ' ៛';
+            }
+
+            function getDiscountsMap() {
                 let map = {};
                 try {
-                    const bodyAttr = document.body.getAttribute('data-product-discounts');
-                    if (bodyAttr) map = JSON.parse(bodyAttr) || {};
+                    const attr = document.body.getAttribute('data-product-discounts');
+                    if (attr) map = JSON.parse(attr) || {};
                 } catch (e) {}
                 try {
                     const raw = localStorage.getItem(DISCOUNT_STORAGE_KEY);
@@ -9299,60 +9309,101 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                 return map;
             }
 
-            function getSafeCatalog() {
-                try {
-                    const raw = localStorage.getItem(CATALOG_STORAGE_KEY);
-                    if (raw) {
-                        const parsed = JSON.parse(raw);
-                        if (parsed && Array.isArray(parsed.products)) return parsed.products;
+            // Build a complete live lookup table of all products directly from the page DOM + storage
+            function buildLiveProductLookup() {
+                const discountsMap = getDiscountsMap();
+                const byId = {};
+                const byName = {};
+
+                // 1. Scan all rendered product cards on the page so we NEVER miss a product or price
+                const cards = document.querySelectorAll('#topPicksGrid article, #productsGrid article');
+                cards.forEach(function(card) {
+                    const trigger = card.querySelector('[onclick*="openLightbox"], [onclick*="quickAdd"]');
+                    const onclickStr = (trigger && trigger.getAttribute('onclick')) || card.getAttribute('onclick') || '';
+                    const m = onclickStr.match(/'([^']+)'/);
+                    if (!m || !m[1]) return;
+                    const prodId = m[1];
+
+                    const titleEl = card.querySelector('h3, h4, .font-bold, .font-extrabold');
+                    const rawTitle = titleEl ? titleEl.textContent.trim() : '';
+
+                    // Check if card already has our rendered sale/normal price spans
+                    const cutEl = card.querySelector('.sh-normal-price-cut');
+                    const saleEl = card.querySelector('.sh-sale-price-highlight');
+
+                    let domOrigPrice = 0;
+                    let domSalePrice = 0;
+
+                    if (cutEl && saleEl) {
+                        domOrigPrice = parseFloat((cutEl.textContent || '').replace(/[^0-9.]/g, '')) || 0;
+                        domSalePrice = parseFloat((saleEl.textContent || '').replace(/[^0-9.]/g, '')) || 0;
+                    } else {
+                        // Find any $ price text inside the card
+                        const priceMatches = (card.textContent || '').match(/\$(\d+(\.\d+)?)/);
+                        if (priceMatches) {
+                            domOrigPrice = parseFloat(priceMatches[1]) || 0;
+                            domSalePrice = domOrigPrice;
+                        }
                     }
-                } catch (e) {}
-                return [];
+
+                    const dEntry = discountsMap[prodId];
+                    const pct = dEntry && Number(dEntry.percent) > 0 ? Number(dEntry.percent) : 0;
+                    const origPrice = (dEntry && Number(dEntry.originalPrice) > 0)
+                        ? Number(dEntry.originalPrice)
+                        : domOrigPrice;
+
+                    const salePrice = pct > 0
+                        ? Number((origPrice * (1 - pct / 100)).toFixed(2))
+                        : origPrice;
+
+                    const record = {
+                        id: prodId,
+                        name: rawTitle,
+                        percent: pct,
+                        originalPrice: origPrice,
+                        salePrice: salePrice
+                    };
+
+                    byId[prodId] = record;
+                    if (rawTitle) {
+                        byName[rawTitle.toLowerCase()] = record;
+                    }
+                });
+
+                return { byId: byId, byName: byName, discountsMap: discountsMap };
             }
 
-            function fmtUsd(n) {
-                return '$' + (Number(n) || 0).toFixed(2);
-            }
-
-            function fmtKhr(usd) {
-                const rate = Number(window.KHR_RATE || 4050);
-                const khr = Math.round(((Number(usd) || 0) * rate) / 100) * 100;
-                return khr.toLocaleString('en-US') + ' ៛';
-            }
-
-            function findDiscountByNameOrId(prodId, prodName) {
-                try {
-                    const discountsMap = getSafeDiscountsMap();
-                    const catalog = getSafeCatalog();
-                    let matched = null;
-
-                    if (prodId) {
-                        matched = catalog.find(function(p) { return p.id === prodId; });
-                    }
-                    if (!matched && prodName) {
-                        const clean = prodName.replace(/\(-\d+%\)/g, '').trim().toLowerCase();
-                        matched = catalog.find(function(p) {
-                            return (p.name || '').trim().toLowerCase() === clean;
-                        });
-                    }
-
-                    const id = prodId || (matched ? matched.id : null);
-                    const dInfo = id ? discountsMap[id] : null;
-                    const pct = Number((dInfo && dInfo.percent) || (matched && matched.discountPercent) || 0);
-                    if (pct <= 0) return null;
-
-                    const origPrice = Number((dInfo && dInfo.originalPrice) || (matched && matched.originalPrice) || (matched && matched.price) || 0);
-                    if (origPrice <= 0) return null;
-
-                    const salePrice = Number((origPrice * (1 - pct / 100)).toFixed(2));
-                    return { id: id, percent: pct, originalPrice: origPrice, salePrice: salePrice };
-                } catch (e) {
-                    return null;
+            function findProductDiscountInfo(prodId, prodName) {
+                const lookup = buildLiveProductLookup();
+                if (prodId && lookup.byId[prodId]) {
+                    return lookup.byId[prodId];
                 }
+                if (prodName) {
+                    const clean = prodName
+                        .replace(/\s*\(-\d+%.*?\)/gi, '')
+                        .replace(/\s*-\d+%\s*OFF/gi, '')
+                        .replace(/\s*-\d+%/g, '')
+                        .trim()
+                        .toLowerCase();
+
+                    if (lookup.byName[clean]) {
+                        return lookup.byName[clean];
+                    }
+                    // Partial match fallback
+                    const keys = Object.keys(lookup.byName);
+                    for (let i = 0; i < keys.length; i++) {
+                        if (clean.includes(keys[i]) || keys[i].includes(clean)) {
+                            return lookup.byName[keys[i]];
+                        }
+                    }
+                }
+                return null;
             }
 
-            // 1. Safely update Product Lightbox Popup
-            function safeUpdateProductPopup() {
+            // =========================================================================
+            // 1. UPDATE PRODUCT LIGHTBOX POPUP (Badge + Sale Price + Strikethrough Price)
+            // =========================================================================
+            function updateProductPopupDiscount() {
                 try {
                     const lbModal = document.getElementById('lightboxModal');
                     if (!lbModal || lbModal.classList.contains('hidden')) return;
@@ -9365,35 +9416,66 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
 
                     if (imgBox) {
                         imgBox.classList.add('relative');
-                        const oldBadges = imgBox.querySelectorAll('.sh-lb-disc-badge');
-                        oldBadges.forEach(function(b) { b.remove(); });
+                        imgBox.querySelectorAll('.sh-lb-disc-badge').forEach(function(b) { b.remove(); });
                     }
 
-                    const prodName = titleEl ? titleEl.textContent.trim() : '';
-                    const info = findDiscountByNameOrId(null, prodName);
-                    if (!info) return;
+                    const titleText = titleEl ? titleEl.textContent.trim() : '';
+                    let info = findProductDiscountInfo(activeLightboxProdId, titleText);
 
+                    // Fallback: if originalPrice wasn't in lookup, read the current price shown inside lightboxPriceUSD
+                    if (priceUsdEl && !priceUsdEl.getAttribute('data-raw-usd')) {
+                        const rawM = (priceUsdEl.textContent || '').match(/\$(\d+(\.\d+)?)/);
+                        if (rawM) priceUsdEl.setAttribute('data-raw-usd', rawM[1]);
+                    }
+
+                    const discountsMap = getDiscountsMap();
+                    if ((!info || !info.originalPrice) && activeLightboxProdId && discountsMap[activeLightboxProdId]) {
+                        const d = discountsMap[activeLightboxProdId];
+                        const pct = Number(d.percent) || 0;
+                        const fallbackOrig = Number(d.originalPrice) || parseFloat(priceUsdEl?.getAttribute('data-raw-usd') || '0');
+                        if (pct > 0 && fallbackOrig > 0) {
+                            info = {
+                                id: activeLightboxProdId,
+                                name: titleText,
+                                percent: pct,
+                                originalPrice: fallbackOrig,
+                                salePrice: Number((fallbackOrig * (1 - pct / 100)).toFixed(2))
+                            };
+                        }
+                    }
+
+                    if (!info || info.percent <= 0) return;
+
+                    // A. Top-Right "-40%" Badge on Popup Image
                     if (imgBox) {
-                        const b = document.createElement('div');
-                        b.className = 'sh-discount-corner-badge sh-lb-disc-badge';
-                        b.innerHTML = '<i class="ph-fill ph-lightning"></i><span>-' + info.percent + '%</span>';
-                        imgBox.appendChild(b);
+                        const badge = document.createElement('div');
+                        badge.className = 'sh-discount-corner-badge sh-lb-disc-badge';
+                        badge.innerHTML = '<i class="ph-fill ph-lightning"></i><span>-' + info.percent + '%</span>';
+                        imgBox.appendChild(badge);
                     }
 
+                    // B. Highlighted Sale Price + Strikethrough Normal Price + "-40% OFF" Pill
                     if (priceUsdEl) {
                         priceUsdEl.innerHTML =
-                            '<span class="sh-sale-price-highlight">' + fmtUsd(info.salePrice) + '</span> ' +
-                            '<span class="sh-normal-price-cut text-sm">' + fmtUsd(info.originalPrice) + '</span> ' +
-                            '<span class="ml-1.5 px-2 py-0.5 rounded-full bg-rose-600 text-white text-xs font-black">-' + info.percent + '%</span>';
+                            '<span class="inline-flex flex-wrap items-baseline gap-2">' +
+                                '<span class="sh-sale-price-highlight text-2xl sm:text-3xl font-black">' + fmtUsd(info.salePrice) + '</span>' +
+                                '<span class="sh-normal-price-cut text-base sm:text-lg">' + fmtUsd(info.originalPrice) + '</span>' +
+                                '<span style="font-size: var(--sh-discount-badge-size, 12px);" class="px-2.5 py-0.5 rounded-full bg-[#E1232E] text-white font-black shadow-xs">-' + info.percent + '% OFF</span>' +
+                            '</span>';
                     }
+
+                    // C. Update KHR Price in Popup
                     if (priceKhrEl) {
                         priceKhrEl.textContent = '≈ ' + fmtKhr(info.salePrice);
                     }
                 } catch (e) {}
             }
 
-            // 2. Safely update Cart Drawer Items & "🧾 វិក្កយបត្រ SHSHOP PRO" Text Box
-            function safeUpdateCartAndInvoiceText() {
+            // =========================================================================
+            // 2. UPDATE CART DRAWER ("មើលកន្ត្រកទំនិញ & ផ្ញើវិក្កយបត្រទៅ Telegram")
+            // 3. UPDATE INVOICE TEXT PREVIEW ("🧾 វិក្កយបត្រ SHSHOP PRO")
+            // =========================================================================
+            function updateCartDrawerAndInvoicePreview() {
                 try {
                     const cartContainer = document.getElementById('cartItemsContainer');
                     if (!cartContainer) return;
@@ -9401,72 +9483,207 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
                     const rows = cartContainer.children;
                     if (!rows || rows.length === 0) return;
 
-                    let totalOrig = 0;
-                    let totalSale = 0;
+                    let totalOriginalUsd = 0;
+                    let totalDiscountedUsd = 0;
+                    let hasAnyDiscount = false;
+                    const customInvoiceItemLines = [];
 
                     for (let i = 0; i < rows.length; i++) {
                         const row = rows[i];
-                        const titleEl = row.querySelector('h4');
+                        const titleEl = row.querySelector('h4, h5, .font-bold, .font-extrabold');
                         if (!titleEl) continue;
 
-                        const baseName = titleEl.getAttribute('data-orig-title') || titleEl.textContent.replace(/\s*\(-\d+%\)/g, '').trim();
-                        titleEl.setAttribute('data-orig-title', baseName);
+                        const cleanTitle = titleEl.getAttribute('data-clean-title') ||
+                            titleEl.textContent.replace(/\s*\(-\d+%.*?\)/gi, '').replace(/\s*-\d+%/g, '').trim();
+                        titleEl.setAttribute('data-clean-title', cleanTitle);
 
+                        // Find quantity in this cart row
                         let qty = 1;
-                        const spans = row.querySelectorAll('span');
-                        for (let s = 0; s < spans.length; s++) {
-                            const txt = spans[s].textContent.trim();
-                            if (/^\d+$/.test(txt)) {
-                                qty = parseInt(txt, 10) || 1;
+                        const allSpans = row.querySelectorAll('span');
+                        for (let s = 0; s < allSpans.length; s++) {
+                            const t = allSpans[s].textContent.trim();
+                            if (/^\d+$/.test(t)) {
+                                qty = parseInt(t, 10) || 1;
                                 break;
                             }
                         }
 
-                        const info = findDiscountByNameOrId(null, baseName);
-                        if (info) {
-                            totalOrig += info.originalPrice * qty;
-                            totalSale += info.salePrice * qty;
+                        const info = findProductDiscountInfo(null, cleanTitle);
 
-                            // Show (-40%) next to item title in Cart
-                            titleEl.innerHTML = baseName + ' <span class="text-rose-600 dark:text-[#D4FF33] text-[11px] font-black">(-' + info.percent + '%)</span>';
+                        // Add corner badge on cart item thumbnail image
+                        const thumbImg = row.querySelector('img');
+                        const thumbBox = thumbImg ? thumbImg.parentElement : null;
+                        if (thumbBox) {
+                            thumbBox.classList.add('relative');
+                            thumbBox.querySelectorAll('.sh-cart-mini-pct').forEach(function(el) { el.remove(); });
+                        }
 
-                            // Show discounted unit price + strikethrough normal price below title
-                            const priceLine = titleEl.nextElementSibling;
-                            if (priceLine) {
-                                priceLine.innerHTML =
-                                    '<span class="sh-sale-price-highlight font-extrabold">' + fmtUsd(info.salePrice) + '</span> ' +
-                                    '<span class="sh-normal-price-cut text-[11px]">' + fmtUsd(info.originalPrice) + '</span>';
+                        if (info && info.percent > 0) {
+                            hasAnyDiscount = true;
+                            const lineOrig = Number((info.originalPrice * qty).toFixed(2));
+                            const lineSale = Number((info.salePrice * qty).toFixed(2));
+                            totalOriginalUsd += lineOrig;
+                            totalDiscountedUsd += lineSale;
+
+                            if (thumbBox) {
+                                const mini = document.createElement('span');
+                                mini.className = 'sh-cart-mini-pct absolute -top-1.5 -right-1.5 z-10 px-1.5 py-0.5 rounded-full bg-[#E1232E] text-white text-[9px] font-black shadow border border-white';
+                                mini.textContent = '-' + info.percent + '%';
+                                thumbBox.appendChild(mini);
+                            }
+
+                            // 1. Update Cart Row Title with (-40% OFF) badge
+                            titleEl.innerHTML =
+                                '<span>' + cleanTitle + '</span> ' +
+                                '<span class="inline-flex items-center px-1.5 py-0.5 rounded-md bg-rose-600 text-white text-[10px] font-black">-' + info.percent + '%</span>';
+
+                            // 2. Find and update all price elements inside this cart item row
+                            const priceNodes = [];
+                            const descendants = row.querySelectorAll('p, span, div');
+                            for (let d = 0; d < descendants.length; d++) {
+                                const node = descendants[d];
+                                if (node === titleEl || titleEl.contains(node) || node.contains(titleEl)) continue;
+                                if (node.children.length === 0 && /\$/.test(node.textContent || '')) {
+                                    priceNodes.push(node);
+                                } else if (node.hasAttribute('data-cart-price-slot')) {
+                                    priceNodes.push(node);
+                                }
+                            }
+
+                            if (priceNodes.length > 0) {
+                                const unitNode = priceNodes[0];
+                                unitNode.setAttribute('data-cart-price-slot', 'unit');
+                                unitNode.innerHTML =
+                                    '<span class="sh-sale-price-highlight font-black">' + fmtUsd(info.salePrice) + '</span> ' +
+                                    '<span class="sh-normal-price-cut text-[11px]">' + fmtUsd(info.originalPrice) + '</span> ' +
+                                    '<span class="text-[10px] text-slate-400 font-semibold">(' + fmtKhr(info.salePrice) + ')</span>';
+
+                                if (priceNodes.length > 1) {
+                                    const totalNode = priceNodes[priceNodes.length - 1];
+                                    totalNode.setAttribute('data-cart-price-slot', 'total');
+                                    totalNode.innerHTML =
+                                        '<span class="sh-sale-price-highlight font-black">' + fmtUsd(lineSale) + '</span> ' +
+                                        '<span class="sh-normal-price-cut text-[11px]">' + fmtUsd(lineOrig) + '</span>';
+                                }
+                            }
+
+                            customInvoiceItemLines.push(
+                                '• ' + (i + 1) + '. ' + cleanTitle + ' (x' + qty + ')\n' +
+                                '   🏷️ បញ្ចុះតម្លៃ -' + info.percent + '%៖ ~' + fmtUsd(lineOrig) + '~ ➔ ' + fmtUsd(lineSale) + ' (' + fmtKhr(lineSale) + ')'
+                            );
+                        } else {
+                            // Normal non-discounted item in cart
+                            let unitP = info ? info.salePrice : 0;
+                            if (!unitP) {
+                                const m = (row.textContent || '').match(/\$(\d+(\.\d+)?)/);
+                                unitP = m ? parseFloat(m[1]) : 0;
+                            }
+                            const lineP = Number((unitP * qty).toFixed(2));
+                            totalOriginalUsd += lineP;
+                            totalDiscountedUsd += lineP;
+
+                            customInvoiceItemLines.push(
+                                '• ' + (i + 1) + '. ' + cleanTitle + ' (x' + qty + ') = ' + fmtUsd(lineP) + ' (' + fmtKhr(lineP) + ')'
+                            );
+                        }
+                    }
+
+                    // Update Cart Drawer Bottom Total USD & KHR
+                    const totalSavedUsd = Math.max(0, Number((totalOriginalUsd - totalDiscountedUsd).toFixed(2)));
+                    const cartTotalUsdEl = document.getElementById('cartTotalUSD') || document.getElementById('drawerTotalUSD');
+                    const cartTotalKhrEl = document.getElementById('cartTotalKHR') || document.getElementById('drawerTotalKHR');
+
+                    if (cartTotalUsdEl && totalDiscountedUsd > 0) {
+                        if (hasAnyDiscount && totalSavedUsd > 0) {
+                            cartTotalUsdEl.innerHTML =
+                                '<span class="sh-sale-price-highlight font-black">' + fmtUsd(totalDiscountedUsd) + '</span> ' +
+                                '<span class="sh-normal-price-cut text-sm">' + fmtUsd(totalOriginalUsd) + '</span>';
+                        } else {
+                            cartTotalUsdEl.textContent = fmtUsd(totalDiscountedUsd);
+                        }
+                    }
+                    if (cartTotalKhrEl && totalDiscountedUsd > 0) {
+                        cartTotalKhrEl.textContent = '≈ ' + fmtKhr(totalDiscountedUsd);
+                    }
+
+                    // =========================================================================
+                    // 3. UPDATE "🧾 វិក្កយបត្រ SHSHOP PRO" TEXT PREVIEW BOX
+                    // =========================================================================
+                    let invoiceBox = document.getElementById('invoicePreview') ||
+                                     document.getElementById('invoicePreviewBox') ||
+                                     document.getElementById('telegramInvoicePreview');
+
+                    if (!invoiceBox) {
+                        const candidates = document.querySelectorAll('pre, textarea, .font-mono');
+                        for (let c = 0; c < candidates.length; c++) {
+                            const txt = candidates[c].textContent || candidates[c].value || '';
+                            if (txt.includes('វិក្កយបត្រ SHSHOP PRO') || txt.includes('SHSHOP PRO')) {
+                                invoiceBox = candidates[c];
+                                break;
                             }
                         }
                     }
 
-                    // 3. Append discount percentage into "🧾 វិក្កយបត្រ SHSHOP PRO" preview box
-                    const invoiceBox = document.getElementById('invoicePreview') || document.getElementById('invoicePreviewText');
-                    if (invoiceBox && invoiceBox.textContent) {
-                        let lines = invoiceBox.textContent.split('\n');
-                        const updatedLines = lines.map(function(line) {
-                            // Match product lines like "• 1. Product Name x1 = $10.00"
-                            const prodCheck = getSafeCatalog();
-                            for (let p = 0; p < prodCheck.length; p++) {
-                                const pName = prodCheck[p].name;
-                                if (pName && line.includes(pName) && !line.includes('OFF)')) {
-                                    const d = findDiscountByNameOrId(prodCheck[p].id, pName);
-                                    if (d) {
-                                        return line + ' (-' + d.percent + '% OFF | តម្លៃដើម ' + fmtUsd(d.originalPrice) + ')';
-                                    }
-                                }
-                            }
-                            return line;
-                        });
-                        invoiceBox.textContent = updatedLines.join('\n');
+                    if (invoiceBox && totalDiscountedUsd > 0) {
+                        const custName = (document.getElementById('custName')?.value || '').trim() || 'មិនបានបញ្ជាក់';
+                        const custPhone = (document.getElementById('custPhone')?.value || '').trim() || 'មិនបានបញ្ជាក់';
+                        const custAddress = (document.getElementById('custAddress')?.value || '').trim() || 'មិនបានបញ្ជាក់';
+                        const custNote = (document.getElementById('custNote')?.value || '').trim();
+
+                        const discountSummaryText = (hasAnyDiscount && totalSavedUsd > 0)
+                            ? '🏷️ តម្លៃដើមសរុប៖ ' + fmtUsd(totalOriginalUsd) + '\n' +
+                              '🎉 បញ្ចុះតម្លៃចំណេញបាន៖ -' + fmtUsd(totalSavedUsd) + '\n'
+                            : '';
+
+                        const newInvoiceText =
+                            '🧾 វិក្កយបត្រ SHSHOP PRO\n' +
+                            '━━━━━━━━━━━━━━━━━━━━\n' +
+                            '👤 អតិថិជន៖ ' + custName + '\n' +
+                            '📞 ទូរស័ព្ទ៖ ' + custPhone + '\n' +
+                            '📍 ទីតាំង៖ ' + custAddress + '\n' +
+                            (custNote ? '📝 ចំណាំ៖ ' + custNote + '\n' : '') +
+                            '━━━━━━━━━━━━━━━━━━━━\n' +
+                            '🛒 ទំនិញកម្មង់៖\n' +
+                            customInvoiceItemLines.join('\n') + '\n' +
+                            '━━━━━━━━━━━━━━━━━━━━\n' +
+                            discountSummaryText +
+                            '💰 សរុបត្រូវទូទាត់៖ ' + fmtUsd(totalDiscountedUsd) + ' (≈ ' + fmtKhr(totalDiscountedUsd) + ')';
+
+                        if (invoiceBox.tagName === 'TEXTAREA' || invoiceBox.tagName === 'INPUT') {
+                            invoiceBox.value = newInvoiceText;
+                        } else {
+                            invoiceBox.textContent = newInvoiceText;
+                        }
                     }
                 } catch (e) {}
             }
 
-            // Trigger safely after clicks without interfering with any native button handlers
-            document.addEventListener('click', function() {
-                setTimeout(safeUpdateProductPopup, 80);
-                setTimeout(safeUpdateCartAndInvoiceText, 80);
+            // Capture which product ID was clicked when opening the Lightbox Popup
+            document.addEventListener('click', function(e) {
+                try {
+                    const trigger = e.target.closest('[onclick*="openLightbox"]');
+                    if (trigger) {
+                        const m = (trigger.getAttribute('onclick') || '').match(/openLightbox\('([^']+)'\)/);
+                        if (m && m[1]) activeLightboxProdId = m[1];
+                    }
+                } catch (err) {}
+
+                setTimeout(updateProductPopupDiscount, 50);
+                setTimeout(updateCartDrawerAndInvoicePreview, 60);
+                setTimeout(updateProductPopupDiscount, 180);
+                setTimeout(updateCartDrawerAndInvoicePreview, 180);
+            }, true);
+
+            // Also update live when customer types their Name, Phone, Address, or Note
+            document.addEventListener('input', function(e) {
+                const id = e.target && e.target.id;
+                if (id === 'custName' || id === 'custPhone' || id === 'custAddress' || id === 'custNote') {
+                    setTimeout(updateCartDrawerAndInvoicePreview, 30);
+                }
+            });
+
+            window.addEventListener('DOMContentLoaded', function() {
+                setTimeout(updateCartDrawerAndInvoicePreview, 250);
             });
         })();
     </script>
