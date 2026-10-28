@@ -9275,4 +9275,246 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         window.addEventListener('DOMContentLoaded', () => setTimeout(hookCopyInvoiceButtonOnlyForCustomerPopup, 100));
         setTimeout(hookCopyInvoiceButtonOnlyForCustomerPopup, 200);
     </script>
+	<!-- Sync Discounted Price into the "🧾 វិក្កយបត្រ SHSHOP PRO" Cart Invoice Box, Cart Rows & KHQR Popup -->
+    <script>
+        (function() {
+            const DISCOUNT_STORAGE_KEY = 'shshop_pro_product_discounts_v1';
+            const CATALOG_STORAGE_KEY = 'shshop_pro_saved_catalog_v1';
+
+            function getDiscountsMap() {
+                try {
+                    const raw = localStorage.getItem(DISCOUNT_STORAGE_KEY) || document.body.getAttribute('data-product-discounts');
+                    if (raw) return JSON.parse(raw) || {};
+                } catch (e) {}
+                return {};
+            }
+
+            function getCatalogProducts() {
+                try {
+                    const raw = localStorage.getItem(CATALOG_STORAGE_KEY);
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        if (Array.isArray(parsed.products)) return parsed.products;
+                    }
+                } catch (e) {}
+                return [];
+            }
+
+            function fmtUsd(num) {
+                return '$' + Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
+            function fmtKhr(usdAmount) {
+                const rate = Number(window.KHR_RATE || 4100);
+                const khr = Math.round((Number(usdAmount || 0) * rate) / 100) * 100;
+                return khr.toLocaleString('en-US') + ' ៛';
+            }
+
+            function syncCartInvoiceBoxWithDiscounts() {
+                const cartContainer = document.getElementById('cartItemsContainer');
+                if (!cartContainer) return;
+
+                const discountsMap = getDiscountsMap();
+                const catalogProducts = getCatalogProducts();
+                const cartRows = Array.from(cartContainer.children);
+
+                let totalOriginalUsd = 0;
+                let totalSaleUsd = 0;
+                let hasAnyDiscount = false;
+
+                cartRows.forEach(row => {
+                    const titleEl = row.querySelector('h4, .font-bold, .font-extrabold');
+                    const name = titleEl ? titleEl.textContent.trim() : '';
+                    if (!name) return;
+
+                    // Extract quantity
+                    let qty = 1;
+                    const qtySpans = Array.from(row.querySelectorAll('span')).filter(s => /^\d+$/.test(s.textContent.trim()));
+                    if (qtySpans.length > 0) {
+                        qty = parseInt(qtySpans[0].textContent.trim(), 10) || 1;
+                    }
+
+                    // Match product in catalog or DOM to find its discount %
+                    let matchedProd = catalogProducts.find(p => p.name.trim() === name);
+                    let prodId = matchedProd ? matchedProd.id : null;
+
+                    // Fallback: look up product ID from product cards on the page by matching title
+                    if (!prodId) {
+                        const allCards = document.querySelectorAll('#productsGrid article, #topPicksGrid article');
+                        for (const card of allCards) {
+                            const h3 = card.querySelector('h3');
+                            if (h3 && h3.textContent.trim() === name) {
+                                const trigger = card.querySelector('[onclick*="openLightbox"], [onclick*="quickAdd"]');
+                                const onclickStr = trigger?.getAttribute('onclick') || card.getAttribute('onclick') || '';
+                                const m = onclickStr.match(/'([^']+)'/);
+                                if (m && m[1]) { prodId = m[1]; break; }
+                            }
+                        }
+                    }
+
+                    const dInfo = prodId ? discountsMap[prodId] : null;
+                    const discountPct = Number(dInfo?.percent || matchedProd?.discountPercent || 0);
+
+                    // Read raw price from row if needed
+                    let rawRowPrice = 0;
+                    const priceTextMatch = (row.getAttribute('data-orig-unit-price') || row.textContent || '').match(/\$?(\d+(\.\d+)?)/);
+                    if (priceTextMatch) rawRowPrice = parseFloat(priceTextMatch[1]);
+
+                    let unitOrigPrice = Number(dInfo?.originalPrice || matchedProd?.originalPrice || rawRowPrice || 0);
+                    let unitSalePrice = discountPct > 0
+                        ? Number((unitOrigPrice * (1 - discountPct / 100)).toFixed(2))
+                        : Number(matchedProd?.price || unitOrigPrice);
+
+                    // Save original unit price attribute on row so re-renders never double-discount
+                    if (!row.getAttribute('data-orig-unit-price') && unitOrigPrice > 0) {
+                        row.setAttribute('data-orig-unit-price', String(unitOrigPrice));
+                    }
+
+                    const lineOrigUsd = unitOrigPrice * qty;
+                    const lineSaleUsd = unitSalePrice * qty;
+
+                    totalOriginalUsd += lineOrigUsd;
+                    totalSaleUsd += lineSaleUsd;
+
+                    if (discountPct > 0 && lineOrigUsd > lineSaleUsd) {
+                        hasAnyDiscount = true;
+
+                        // Decorate individual cart item price with Highlighted Sale Price + Strikethrough Normal Price
+                        const priceEl = Array.from(row.querySelectorAll('span, div, p')).find(el =>
+                            el.classList.contains('sh-cart-row-price') ||
+                            (el.children.length === 0 && /^\$\d+(\.\d+)?/.test((el.textContent || '').trim()))
+                        );
+                        if (priceEl) {
+                            priceEl.classList.add('sh-cart-row-price');
+                            priceEl.innerHTML = `
+                                <span class="inline-flex flex-wrap items-center gap-1.5">
+                                    <span class="text-[#E1232E] dark:text-[#D4FF33] font-black">${fmtUsd(lineSaleUsd)}</span>
+                                    <span class="line-through text-slate-400 text-[11px] font-bold">${fmtUsd(lineOrigUsd)}</span>
+                                    <span class="px-1.5 py-0.2 rounded-md bg-[#E1232E] text-white text-[9px] font-black">-${discountPct}%</span>
+                                </span>
+                            `;
+                        }
+                    }
+                });
+
+                // Update the "🧾 វិក្កយបត្រ SHSHOP PRO" Summary Box (in your screenshot)
+                const totalUsdEl = document.getElementById('cartTotalUSD')
+                    || document.getElementById('invoiceTotalUSD')
+                    || Array.from(document.querySelectorAll('#cartDrawer span, #cartDrawer div')).find(el =>
+                        el.children.length === 0 && /^\$\d+(\.\d+)?$/.test(el.textContent.trim()) && el.closest('.border-dashed')
+                    );
+
+                const totalKhrEl = document.getElementById('cartTotalKHR')
+                    || document.getElementById('invoiceTotalKHR')
+                    || Array.from(document.querySelectorAll('#cartDrawer span, #cartDrawer div')).find(el =>
+                        el.children.length === 0 && el.textContent.includes('៛') && el.closest('.border-dashed')
+                    );
+
+                const invoiceBox = totalUsdEl?.closest('.border-dashed') || document.querySelector('#cartDrawer .border-dashed');
+
+                if (totalUsdEl && totalOriginalUsd > 0) {
+                    if (hasAnyDiscount && totalOriginalUsd > totalSaleUsd) {
+                        const savedUsd = totalOriginalUsd - totalSaleUsd;
+                        const avgPct = Math.round((savedUsd / totalOriginalUsd) * 100);
+
+                        totalUsdEl.innerHTML = `
+                            <span class="inline-flex items-baseline gap-2">
+                                <span class="text-xs sm:text-sm font-bold text-slate-400 line-through decoration-rose-500 decoration-2">${fmtUsd(totalOriginalUsd)}</span>
+                                <span class="text-lg sm:text-xl font-black text-[#E1232E] dark:text-[#D4FF33]">${fmtUsd(totalSaleUsd)}</span>
+                            </span>
+                        `;
+
+                        if (totalKhrEl) {
+                            totalKhrEl.innerHTML = `
+                                <span class="inline-flex items-baseline gap-1.5">
+                                    <span class="text-[11px] text-slate-400 line-through">${fmtKhr(totalOriginalUsd)}</span>
+                                    <span class="font-extrabold text-slate-700 dark:text-slate-200">${fmtKhr(totalSaleUsd)}</span>
+                                </span>
+                            `;
+                        }
+
+                        // Inject or update a clean "បញ្ចុះតម្លៃ (ចំណេញបាន): -$XX.XX (-XX%)" row inside the dashed invoice card
+                        if (invoiceBox) {
+                            let savedRow = invoiceBox.querySelector('#shInvoiceSavedRow');
+                            if (!savedRow) {
+                                savedRow = document.createElement('div');
+                                savedRow.id = 'shInvoiceSavedRow';
+                                savedRow.className = "flex items-center justify-between text-xs font-extrabold text-[#E1232E] dark:text-[#D4FF33] bg-rose-500/10 dark:bg-rose-500/15 px-2.5 py-1.5 rounded-xl mt-2";
+                                invoiceBox.appendChild(savedRow);
+                            }
+                            const isEn = document.getElementById('langLabel')?.textContent.trim() === 'ខ្មែរ';
+                            savedRow.innerHTML = `
+                                <span class="flex items-center gap-1">
+                                    <i class="ph-fill ph-seal-percent text-sm"></i>
+                                    <span>${isEn ? `Discount Saved (-${avgPct}%):` : `បញ្ចុះតម្លៃសរុប (-${avgPct}%):`}</span>
+                                </span>
+                                <span class="font-mono">-${fmtUsd(savedUsd)}</span>
+                            `;
+                        }
+                    } else {
+                        totalUsdEl.textContent = fmtUsd(totalSaleUsd);
+                        if (totalKhrEl) totalKhrEl.textContent = fmtKhr(totalSaleUsd);
+                        const oldSavedRow = invoiceBox?.querySelector('#shInvoiceSavedRow');
+                        if (oldSavedRow) oldSavedRow.remove();
+                    }
+                }
+
+                // Store current discounted cart total globally so ABA/ACLEDA KHQR Popup uses the discounted total
+                window.__shDiscountedCartTotalUSD = totalSaleUsd;
+                window.__shOriginalCartTotalUSD = totalOriginalUsd;
+            }
+
+            // Ensure ABA / ACLEDA KHQR Popup also displays & generates QR for the Discounted Price!
+            function syncKhqrPopupWithDiscountedTotal() {
+                const saleUsd = Number(window.__shDiscountedCartTotalUSD || 0);
+                const origUsd = Number(window.__shOriginalCartTotalUSD || 0);
+                if (saleUsd <= 0) return;
+
+                const qrUsdEl = document.getElementById('qrPopupTotalUSD');
+                const qrKhrEl = document.getElementById('qrPopupTotalKHR');
+
+                if (qrUsdEl) {
+                    if (origUsd > saleUsd) {
+                        qrUsdEl.innerHTML = `${fmtUsd(saleUsd)} <span class="text-xs text-slate-400 line-through font-normal ml-1">${fmtUsd(origUsd)}</span>`;
+                    } else {
+                        qrUsdEl.textContent = fmtUsd(saleUsd);
+                    }
+                }
+                if (qrKhrEl) {
+                    qrKhrEl.textContent = fmtKhr(saleUsd);
+                }
+            }
+
+            // Hook into openCustomerQrPopup so opening ABA or ACLEDA KHQR always charges the discounted price
+            window.addEventListener('DOMContentLoaded', () => {
+                setTimeout(() => {
+                    if (typeof window.openCustomerQrPopup === 'function' && !window.openCustomerQrPopup.__discHooked) {
+                        const origQrFn = window.openCustomerQrPopup;
+                        window.openCustomerQrPopup = function(bankType) {
+                            syncCartInvoiceBoxWithDiscounts();
+                            origQrFn(bankType);
+                            setTimeout(syncKhqrPopupWithDiscountedTotal, 30);
+                        };
+                        window.openCustomerQrPopup.__discHooked = true;
+                    }
+                }, 200);
+            });
+
+            // Observe Cart Items Container so any add/remove/quantity change immediately updates the Invoice Box
+            window.addEventListener('DOMContentLoaded', () => {
+                const cartContainer = document.getElementById('cartItemsContainer');
+                if (cartContainer) {
+                    const obs = new MutationObserver(() => {
+                        setTimeout(syncCartInvoiceBoxWithDiscounts, 20);
+                    });
+                    obs.observe(cartContainer, { childList: true, subtree: true });
+                }
+                setTimeout(syncCartInvoiceBoxWithDiscounts, 150);
+            });
+
+            document.addEventListener('click', () => {
+                setTimeout(syncCartInvoiceBoxWithDiscounts, 50);
+            });
+        })();
+    </script>
 </body></html>
