@@ -10726,86 +10726,114 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             if (copyBtn) copyBtn.onclick = handleCustomerCopyReceiptClick;
         }
 
-        const nativeFetch = window.fetch.bind(window);
+        // ============================================================================
+        // FIXED: ទប់ស្កាត់ការផ្ញើជាន់គ្នា 100% (ផ្ញើតែ 1 វិក្កយបត្រម្ចាស់ហាង + 1 រូបបង់ប្រាក់ដើមប៉ុណ្ណោះ)
+        // ============================================================================
+        if (!window.__shshopNativeFetch) {
+            window.__shshopNativeFetch = window.fetch.bind(window);
+        }
+        const nativeFetch = window.__shshopNativeFetch;
 
         async function dispatchOwnerReceiptToTelegram(botToken, chatId, explicitSlipBlob = null) {
+            // ប្រសិនបើកំពុងផ្ញើ ឬទើបតែផ្ញើរួចក្នុងរយៈពេល 8 វិនាទី សូមបញ្ឈប់ភ្លាមដើម្បីកុំឱ្យផ្ញើជាន់គ្នា!
+            const nowTime = Date.now();
+            if (window.__shshopBotSendingLock || (nowTime - (window.__shshopLastBotSentAt || 0) < 8000)) {
+                return new Response(JSON.stringify({ ok: true, result: { chat: { id: chatId } } }), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            }
+
             const items = getCurrentCartItemsWithDiscounts();
             if (items.length === 0 || !botToken || !chatId) return null;
 
-            const slipSource = explicitSlipBlob || getCustomerUploadedPaymentSlip();
-            const drawableSlipImg = await loadDrawableImage(slipSource);
+            // ចាក់សោភ្លាមៗមុនពេលគូររូប និងផ្ញើ
+            window.__shshopBotSendingLock = true;
+            window.__shshopLastBotSentAt = nowTime;
 
-            const orderMeta = buildOrderMeta();
-            const ownerCanvas = buildOwnerTelegramOrderCanvas(items, orderMeta, drawableSlipImg);
-            latestOwnerBotCanvas = ownerCanvas;
+            try {
+                const slipSource = explicitSlipBlob || getCustomerUploadedPaymentSlip();
+                const drawableSlipImg = await loadDrawableImage(slipSource);
 
-            const { custName, custPhone, custAddress, custNote } = orderMeta;
-            const grandTotalUsd = items.reduce((sum, i) => sum + i.lineTotalUsd, 0);
-            const totalOrigUsd = items.reduce((sum, i) => sum + i.lineOrigUsd, 0);
-            const totalSavedUsd = Math.max(0, totalOrigUsd - grandTotalUsd);
+                const orderMeta = buildOrderMeta();
+                const ownerCanvas = buildOwnerTelegramOrderCanvas(items, orderMeta, drawableSlipImg);
+                latestOwnerBotCanvas = ownerCanvas;
 
-            const itemLines = items.map((it, i) => {
-                if (it.discountPct > 0 && it.lineOrigUsd > it.lineTotalUsd) {
-                    return `${i + 1}. ${it.name} (x${it.qty}) = <b>${fmtUsd(it.lineTotalUsd)}</b> <s>${fmtUsd(it.lineOrigUsd)}</s> [<b>-${it.discountPct}% OFF</b>]`;
-                }
-                return `${i + 1}. ${it.name} (x${it.qty}) = <b>${fmtUsd(it.lineTotalUsd)}</b>`;
-            }).join('\n');
+                const { custName, custPhone, custAddress, custNote } = orderMeta;
+                const grandTotalUsd = items.reduce((sum, i) => sum + i.lineTotalUsd, 0);
+                const totalOrigUsd = items.reduce((sum, i) => sum + i.lineOrigUsd, 0);
+                const totalSavedUsd = Math.max(0, totalOrigUsd - grandTotalUsd);
 
-            const savingsLine = totalSavedUsd > 0 ? `🎉 <b>បញ្ចុះតម្លៃសរុប៖</b> -${fmtUsd(totalSavedUsd)} (តម្លៃដើម <s>${fmtUsd(totalOrigUsd)}</s>)\n` : '';
-
-            const caption =
-                `🔔 <b>ប័ណ្ណកម្មង់ទំនិញថ្មី (#${latestOrderCode})</b>\n` +
-                `━━━━━━━━━━━━━━━━━━\n` +
-                `👤 <b>ឈ្មោះភ្ញៀវ៖</b> ${custName}\n` +
-                `📞 <b>លេខទូរស័ព្ទ៖</b> <code>${custPhone}</code>\n` +
-                `📍 <b>ទីតាំងដឹក៖</b> ${custAddress}\n` +
-                `💳 <b>ការទូទាត់៖</b> ${custNote}\n` +
-                `━━━━━━━━━━━━━━━━━━\n` +
-                `🛒 <b>ទំនិញកម្មង់៖</b>\n${itemLines}\n` +
-                `━━━━━━━━━━━━━━━━━━\n` +
-                savingsLine +
-                `💰 <b>សរុបត្រូវទូទាត់៖ ${fmtUsd(grandTotalUsd)} (≈ ${fmtKhr(grandTotalUsd)})</b>`;
-
-            return new Promise((resolve) => {
-                ownerCanvas.toBlob(async (ownerBlob) => {
-                    if (!ownerBlob) { resolve(null); return; }
-                    isInternalBotDispatch = true;
-                    try {
-                        const formData = new FormData();
-                        formData.append('chat_id', chatId);
-                        formData.append('photo', ownerBlob, `Owner-Order-${latestOrderCode}.png`);
-                        formData.append('caption', caption);
-                        formData.append('parse_mode', 'HTML');
-
-                        const mainResp = await nativeFetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-                            method: 'POST',
-                            body: formData
-                        });
-
-                        if (slipSource instanceof Blob || slipSource instanceof File) {
-                            const slipForm = new FormData();
-                            slipForm.append('chat_id', chatId);
-                            slipForm.append('photo', slipSource, `Payment-Slip-${latestOrderCode}.jpg`);
-                            slipForm.append('caption', `🧾 រូបភាពបង់ប្រាក់ដើមរបស់ភ្ញៀវ (${custName} • ${custPhone}) #${latestOrderCode}`);
-                            await nativeFetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-                                method: 'POST',
-                                body: slipForm
-                            });
-                        }
-
-                        isInternalBotDispatch = false;
-                        resolve(mainResp);
-                    } catch (e) {
-                        isInternalBotDispatch = false;
-                        resolve(null);
+                const itemLines = items.map((it, i) => {
+                    if (it.discountPct > 0 && it.lineOrigUsd > it.lineTotalUsd) {
+                        return `${i + 1}. ${it.name} (x${it.qty}) = <b>${fmtUsd(it.lineTotalUsd)}</b> <s>${fmtUsd(it.lineOrigUsd)}</s> [<b>-${it.discountPct}% OFF</b>]`;
                     }
-                }, 'image/png');
-            });
+                    return `${i + 1}. ${it.name} (x${it.qty}) = <b>${fmtUsd(it.lineTotalUsd)}</b>`;
+                }).join('\n');
+
+                const savingsLine = totalSavedUsd > 0 ? `🎉 <b>បញ្ចុះតម្លៃសរុប៖</b> -${fmtUsd(totalSavedUsd)} (តម្លៃដើម <s>${fmtUsd(totalOrigUsd)}</s>)\n` : '';
+
+                const caption =
+                    `🔔 <b>ប័ណ្ណកម្មង់ទំនិញថ្មី (#${latestOrderCode})</b>\n` +
+                    `━━━━━━━━━━━━━━━━━━\n` +
+                    `👤 <b>ឈ្មោះភ្ញៀវ៖</b> ${custName}\n` +
+                    `📞 <b>លេខទូរស័ព្ទ៖</b> <code>${custPhone}</code>\n` +
+                    `📍 <b>ទីតាំងដឹក៖</b> ${custAddress}\n` +
+                    `💳 <b>ការទូទាត់៖</b> ${custNote}\n` +
+                    `━━━━━━━━━━━━━━━━━━\n` +
+                    `🛒 <b>ទំនិញកម្មង់៖</b>\n${itemLines}\n` +
+                    `━━━━━━━━━━━━━━━━━━\n` +
+                    savingsLine +
+                    `💰 <b>សរុបត្រូវទូទាត់៖ ${fmtUsd(grandTotalUsd)} (≈ ${fmtKhr(grandTotalUsd)})</b>`;
+
+                return await new Promise((resolve) => {
+                    ownerCanvas.toBlob(async (ownerBlob) => {
+                        if (!ownerBlob) {
+                            window.__shshopBotSendingLock = false;
+                            resolve(null);
+                            return;
+                        }
+                        try {
+                            // 1. ផ្ញើរូបវិក្កយបត្រម្ចាស់ហាង (1 សន្លឹកគត់)
+                            const formData = new FormData();
+                            formData.append('chat_id', chatId);
+                            formData.append('photo', ownerBlob, `Owner-Order-${latestOrderCode}.png`);
+                            formData.append('caption', caption);
+                            formData.append('parse_mode', 'HTML');
+
+                            const mainResp = await nativeFetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                                method: 'POST',
+                                body: formData
+                            });
+
+                            // 2. ប្រសិនបើភ្ញៀវបានភ្ជាប់រូបបង់ប្រាក់ ABA/ACLEDA ផ្ញើរូបដើមច្បាស់ 1 សន្លឹកទៀតប៉ុណ្ណោះ
+                            if (slipSource instanceof Blob || slipSource instanceof File) {
+                                const slipForm = new FormData();
+                                slipForm.append('chat_id', chatId);
+                                slipForm.append('photo', slipSource, `Payment-Slip-${latestOrderCode}.jpg`);
+                                slipForm.append('caption', `🧾 រូបភាពបង់ប្រាក់ដើមរបស់ភ្ញៀវ (${custName} • ${custPhone}) #${latestOrderCode}`);
+                                await nativeFetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                                    method: 'POST',
+                                    body: slipForm
+                                });
+                            }
+
+                            setTimeout(() => { window.__shshopBotSendingLock = false; }, 3000);
+                            resolve(mainResp);
+                        } catch (e) {
+                            window.__shshopBotSendingLock = false;
+                            resolve(null);
+                        }
+                    }, 'image/png');
+                });
+            } catch (err) {
+                window.__shshopBotSendingLock = false;
+                return null;
+            }
         }
 
+        // ចាប់យករាល់ការហៅទៅ Telegram API ហើយបង្វែរឱ្យផ្ញើតែម្តងគត់
         window.fetch = async function(input, init) {
-            if (isInternalBotDispatch) return nativeFetch(input, init);
-
             const urlStr = typeof input === 'string' ? input : (input?.url || '');
             const match = urlStr.match(/api\.telegram\.org\/bot([^/]+)\/(sendMessage|sendPhoto)/i);
 
@@ -10834,15 +10862,22 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
 
                 const items = getCurrentCartItemsWithDiscounts();
                 if (items.length > 0 && interceptedToken && interceptedChatId) {
+                    // ប្រសិនបើការកម្មង់នេះទើបតែត្រូវបានផ្ញើរួចហើយ (ក្នុងរយៈពេល 8 វិនាទី) សូមបិទចោលការហៅផ្ទួនៗទាំងអស់!
+                    if (window.__shshopBotSendingLock || (Date.now() - (window.__shshopLastBotSentAt || 0) < 8000)) {
+                        return new Response(JSON.stringify({ ok: true, result: { chat: { id: interceptedChatId } } }), {
+                            status: 200,
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                    }
+
                     latestOrderCode = 'SH-' + Math.floor(100000 + Math.random() * 900000);
                     const botResp = await dispatchOwnerReceiptToTelegram(interceptedToken, interceptedChatId, uploadedSlipFile);
-                    if (botResp && botResp.ok) return botResp;
+                    if (botResp) return botResp;
                 }
             }
 
             return nativeFetch(input, init);
         };
-
         setTimeout(() => {
             try {
                 const app = getApp();
